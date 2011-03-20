@@ -1,0 +1,40 @@
+{% extends "form_engine/base.html" %}
+{% block title %} {{form_template.title}} {% endblock %}
+
+{% block inset %}
+<span class="app-title">{{form_template.title}}</span>
+{% endblock %}
+
+{% block left-section %}
+<div> </div>
+{% endblock %}
+
+{% block content %}
+<div class="user-form">
+<span id="form-title">{{ form_template.description }}</span>
+<form autocomplete="on"  method="post" action="{% url form_send_data form_slug=form_template.slug form_uuid=form_template.form_uuid %}" >
+	{% csrf_token %}
+<ul id="qn_items" class="sortable">
+	{% for form in forms_collection %}
+	{{ form.as_input_field }}
+	{% endfor %}
+</ul>
+<input name="next" type="hidden" value="{{ next }}" />
+<div class="form-button"><button class="uiButton" type="submit">save</button> <button class="uiButton" type="reset">clear</button></div>
+</form>
+</div>
+{% endblock %}
+
+{% block css %}
+<style>
+
+.content-left {
+	width:980px;
+}
+
+#content {
+	width: 774px;
+	background-color: #C9EAFC;
+}
+</style>
+{% endblock %}

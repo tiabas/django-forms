@@ -1,0 +1,12 @@
+{% extends "form_engine/form_builder_base.html" %}
+{% block title %} {{block.super}}| Form Creator {% endblock %}
+
+{% block form-controls %}
+	<div class="tab_content">
+		<ul id="fieldTypes">
+		{% for type, name in field_types.items %}
+			<li><a href="{% url add_field_type form_id=form_template.id field_type=type %}" class="button">{{ name }}</a></li>
+		{% endfor %}
+		</ul>
+	</div>
+{% endblock %}

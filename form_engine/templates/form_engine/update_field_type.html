@@ -1,0 +1,52 @@
+{% extends "form_engine/form_builder_base.html" %}
+{% block title %} {{block.super}}| Form Creator {% endblock %}
+{% block form-controls %}
+<div id="addField" class="tab_content">
+	<form id="addFieldForm" name="question" autocomplete="on" method="post" method="post" action="">
+		{% csrf_token %}
+		<div id="entry" class="form">
+			<ul>
+			{% for field in question_form  %}
+				<li class="form_field">
+					{% if not field.is_hidden and field.label %} {{ field.label }} {% endif %} 
+					{{ field }}
+				</li>
+				{% if field.errors %}
+				<li>
+					{{ field.errors }}
+				</li>
+				{% endif %}
+			{% endfor %}
+			{% if question_form.is_multiple_choice %}
+				<li>
+					<div class="choicebox">
+					{% if field_choices %}
+					<label>Choices</label>
+					<ul id="choices">
+						{% for  choice in field_choices %}
+						<li><input id="choice_{{ choice.id }}" class="text choices" type="text" name="choice-{{ choice.id }}" value="{{ choice.text }}" />
+							<input type="hidden" name="choice-{{ choice.id }}_Id" value="{{ choice.text }}" />
+						   <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a>
+							<a href="#" class="delChoice icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+						</li>
+						{% endfor %}
+					{% else %}
+						<li><input class="text choices" type="text" name="qChoices" value="" />
+						     <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a><a href="#" class="delChoice icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+						</li>
+				  		<li><input class="text choices" type="text" name="qChoices" value="" />
+						     <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a><a href="#" class="delChoice  icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+						</li>
+				  		<li><input class="text choices" type="text" name="qChoices" value="" />
+						     <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a><a href="#" class="delChoice  icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+						</li>
+				{% endif %}
+					</ul>
+				</li>
+				{% endif %}
+				<li><button type="submit" id="saveQuestion" name="saveForm" class="btTxt submit" >save</button></li>
+			</ul>
+		</div>
+	</form>
+</div>
+{% endblock %}

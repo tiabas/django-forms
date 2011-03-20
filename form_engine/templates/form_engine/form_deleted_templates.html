@@ -1,0 +1,40 @@
+{% extends "form_engine/base.html" %}
+{% load custom_filters %}
+
+{% block title %}
+	{{ block.super }} | My Deleted Templates 
+{% endblock %}
+
+{% block content %}
+{% if not my_deleted_templates %}
+<div class="info-box">
+	<h4>No templates in Trash</h4>
+	<p>You currently have no deleted forms in your trash.</p>
+</div>
+{% else %}
+<div class="template-list">
+	<h1>My deleted templates</h1>
+	<ul>
+	{% for template in my_deleted_templates %}
+	<li class="{% cycle 'odd' 'even' %} template-entry">
+		<a href="{% url form_template_view form_id=template.id %}"><h3>{{ template }}</h3></a>
+		<p class="medium-text">{{ template.description }}</p>
+		<p class="views"></p>
+		<p class="rating"></p>
+		<div class="actions">
+			<ul>
+			<li class="menu-links"><a href="{% url form_template_edit template.id %}">Edit</a></li>
+			<li class="menu-links"><a href="{% url form_template_edit template.id %}">Share</a></li>
+			<li class="menu-links"><a href="{% url form_template_restore template.id %}">Restore</a></li>
+			<li class="menu-links"><a href="{% url form_template_view template.id %}">Preview</a></li>
+			<li class="menu-links"><a href="{% url form_template_edit template.id %}">Print</a></li>
+			<li class="menu-links"><a href="{% url form_template_edit template.id %}">Responses</a></li>
+			<li class="menu-links"><a href="{% url form_template_edit template.id %}">Copy</a></li>
+			</ul>
+		</div>
+	</li>
+	{% endfor %}
+	</ul>
+</div>
+{% endif %}
+{% endblock %}

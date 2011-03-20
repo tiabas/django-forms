@@ -1,0 +1,28 @@
+{% extends "form_engine/form_builder_base.html" %}
+{% block title %} {{block.super}}| Form Creator {% endblock %}
+
+{% block form-controls %}
+<div id="addField" class="tab_content">
+	<form id="addFieldForm" name="question" autocomplete="on" enctype="multipart/form-data" method="post" action="">
+		{% csrf_token %}
+	<div id="entry" class="form">
+		<ul>
+		{% for field in settings_form  %}
+			<li class="form_field">
+				{% if not field.is_hidden and field.label %} 
+					{{ field.label }}: 
+				{% endif %} 
+					{{ field }}
+			</li>
+			{% if field.errors %}
+			<li>
+				{{ field.errors }}
+			</li>
+			{% endif %}
+		{% endfor %}
+		<li><button type="submit" id="saveQuestion" name="saveForm" class="btTxt submit" >save</button></li>
+		</ul>
+	</div>
+	</form>
+</div>
+{% endblock %}

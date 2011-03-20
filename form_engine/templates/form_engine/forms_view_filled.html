@@ -1,0 +1,41 @@
+{% extends "form_engine/base.html" %}
+{% load custom_filters %}
+
+{% block title %}{{ block.super }} | Forms {% endblock %}
+
+{% block content %}
+{% if not user_sessions %}
+<div class="info-box">
+	<span class="headline">You have no form entries</span>
+	<p>When you fill out any form that is hosted on igroups, your form data is 
+		made available for you here to review or edit.
+		<div id="buttons">
+		<a class="link-button" href="{% url form_template_create %}" title="Create a new form"><span>Create Form</span></a>
+		<a class="link-button" href="" title="import_form"><span>Import Form</span></a>
+		</div>
+	</p>
+</div>
+{% else %}
+<div class="template-list">
+	<h1>My Forms</h1>
+	<ul>
+	{% for session in user_sessions %}
+	<li class="{% cycle 'odd' 'even' %} template-entry">
+		    <a href="{# url form_template_view form_id=session.form__id #}"><h4>{{ session.form.title }}</h4></a>
+ 			<p class="medium-text">{{ session.form.description }}</p>
+			<p class="views">Submitted: {{session.modified}}</p>
+				<ul class="horizontal">
+				{% if session.complete %}
+				<li><a class="link-button" href="{% url form_send_data form_slug=session.form.slug form_uuid=session.uuid %}">Edit</a></li>
+				<li><a class="link-button" href="{% url form_entry_view form_uuid=session.uuid %}">View</a></li>
+				{% else %}
+				<li><a class="link-button" href="{% url form_send_data form_slug=session.form.slug form_uuid=session.uuid %}">Enter data</a></li>
+				{% endif %}
+				</ul>
+			
+	</li>
+	{% endfor %}
+	</ul>
+</div>
+{% endif %}
+{% endblock %}

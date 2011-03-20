@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block title %}{{ block.super }} | Forms {% endblock %}
+
+{% block left-section %}
+<span class="app-title">Forms</span>
+<ul>
+	{% url forms_home as panel_link %}
+	<li class="menu-links panel {% active request panel_link %}"><a href="{% url forms_home %}">My forms ({{ count_undeleted|default_if_none:0 }})</a></li>
+	{% url my_filled_forms as panel_link %}
+	<li class="menu-links panel {% active request panel_link %}"><a href="{% url my_filled_forms %}">My entries ({{ count_filled|default_if_none:0 }})</a></li>
+	{% url form_template_create as panel_link %}
+	<li class="menu-links panel {% active request panel_link %}"><a href="{% url form_template_create %}">New form</a></li>
+	<li class="menu-links panel"><a href="">Import form</a></li>
+	{% url my_deleted_templates as panel_link %}
+	<li class="menu-links panel {% active request panel_link %}"><a href="{% url my_deleted_templates %}">Trash ({{ count_deleted|default_if_none:0 }})</a></li>
+</ul>
+{% endblock %}
+{% block content %}
+<table class="title">
+	<tbody>
+		<td style="width: 90%; font-weight: normal; font-size: 22px; clear: left; color: rgb(0, 0, 0); padding: 0pt 10px 15px 0pt;" class="h2">
+			<span style="font-size: 0.9em">{{ user_form }}</span>
+		</td>
+	</tbody>
+</table>
+<table cellspacing="0">
+	<tbody>
+		{% for user_value in user_form.values %}
+		<tr class="{% cycle 'even' 'odd' %}">
+			<th> {{ user_value.question__text }} </th>
+			<td><div>{{ user_value.text}}</div></td>
+		</tr>
+		{% endfor %}
+</tbody></table>
+{% endblock %}
+
+{%block css %}
+<style>
+table.title {
+	margin-top: 10px;
+	font-size: 22px;
+}
+table.title tr {
+	border: none;
+}
+
+table {
+	width: 98%; 
+	border-bottom: 1px solid rgb(238, 238, 238); 
+	font-size: 12px; line-height: 135%; 
+	font-family: Lucida Grande,Tahoma,Arial,sans-serif;
+}
+
+tbody tr {
+	border-top: 1px solid rgb(238, 238, 238);
+	border-top: 1px solid rgb(238, 238, 238);
+}
+
+tbody tr.even {
+	background-color: rgb(245, 245, 245);
+}
+
+tbody tr.odd {
+	background-color: rgb(255, 255, 255);
+}
+
+tbody tr th {
+	vertical-align: top;
+	color: rgb(34, 34, 34); 
+	text-align: left; 
+	padding: 7px 9px; 
+	width: 50%;
+}
+
+tbody tr th td {
+	vertical-align: top; 
+	color: rgb(51, 51, 51); 
+	width: 40%; 
+	padding: 7px 9px 7px 0pt; 
+
+}
+</style
+{% endblock %}

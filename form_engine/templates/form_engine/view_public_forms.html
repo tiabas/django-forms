@@ -1,0 +1,29 @@
+{% extends "form_engine/base.html" %}
+{% block title %}{{ block.super }} | Public Forms {% endblock %}
+
+{% block content %}
+{% if not public_templates %}
+<div class="info-box">
+	<span class="headline">Welcome to the igroups form creation and management application</span>
+	<p>The are currently have no public forms available. Check again soon. </p>
+</div>
+{% else %}
+<div class="template-list">
+	<ul>
+	{% for template in public_templates %}
+	<li class="{% cycle 'odd' 'even' %} template-entry">
+		<a href="{% url form_template_view form_id=template.id %}"><h4>{{ template }}</h4></a>
+		<p class="medium-text">Author: {{ template.author.get_full_name }}</p>
+		<p class="medium-text">Description: {{ template.description }}</p>
+
+			<ul class="horizontal">
+			<li ><a class="link-button" href="{% url form_send_data form_slug=template.slug %}">Preview</a></li>
+			<li ><a class="link-button" href="{% url form_template_import template_slug=template.slug %}">Import</a></li>
+			</ul>
+		
+	</li>
+	{% endfor %}
+	</ul>
+</div>
+{% endif %}
+{% endblock %}

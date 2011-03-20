@@ -1,0 +1,39 @@
+
+	<div class="info">
+		<h2>{{survey.title}}</h2>
+		<div>Please take a few moments to complete this satisfaction survey. </div>
+	</div>
+
+	<ul class="sortable">
+		{% if bound_field.errors %}
+		<p>{{ bound_field.errors }}</p>
+		{% endif %}
+
+		{% for form in survey.forms %}
+		<li class="sortable_item {{form.qid}}">
+			<img src="/site_media/images/arrow.png" alt="move" width="16" height="16" class="icon handle" />
+			<span id="qn_attr" class="icon">
+			<img src="/site_media/images/delete.gif" class="delete" />
+			{{ form.q_id }} {{ form.s_id }}
+			</span>
+			
+			{{ form.answer.label_tag }}
+			<div class="options">
+			{{ form.answer }}
+			</div>
+		
+		</li>
+		{% endfor %}
+                <li>
+		<div>
+		<input type="hidden" name="currentPage" id="currentPage" value="dB5YAYUJLThQ1vViLqkRtO8PC6nWmLuPsz2BRQNT4gw=">
+		<input id="saveForm" name="saveForm" class="btTxt submit" type="submit" value="Submit" />
+		</div>
+		</li>
+
+		<li style="display:none">
+			<label for="comment">Do Not Fill This Out</label>
+			<textarea name="comment" id="comment" rows="1" cols="1"></textarea>
+			<input type="hidden" id="idstamp" name="idstamp" value="" />
+		</li>
+	</ul>

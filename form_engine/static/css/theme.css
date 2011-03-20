@@ -1,0 +1,270 @@
+/* - - - Custom Theme - - - */
+/****************************************************************************************/
+/* ----- survey edit forms ----- */
+
+form.wufoo{
+	margin:20px 10px 0 10px;
+	padding:0 0 20px 0;
+	color: #000;
+}
+
+form.wufoo input, form.wufoo select  {
+	-moz-border-radius: 0px;
+	-webkit-border-radius: 0px;
+/*	padding: 5px 0;*/
+}
+
+span.qlabel {
+/*	margin-bottom: 2px;*/
+}
+
+span.helpText {
+	width: inherit;
+	margin-bottom: 2px;
+	font-size: 0.9em;
+}
+
+div.options input.text {
+	width: 350px;
+}
+
+div.options span{
+	display:block;
+	float:left;
+	margin:0;
+	width:20%;
+}
+
+div.options span label {
+	color:#222222;
+	font-size:100%;
+	line-height:150%;
+	margin: 1px 0 0 0px;
+	padding:0 0 5px;
+	width:88%;
+}
+
+div.options span input {
+  margin-right: 10px;
+ float:left;
+} 
+
+.datetime input {
+	width: 40px;
+}
+
+.entry{
+	background-color: #C3E1F7;
+	padding: 6px;
+	width: inherit;
+}
+
+.entry select{
+	line-height: 1.1em;
+	padding: 4px;
+	border:1px solid #999;
+}
+
+.entry .choices[class] input[type=text] {
+    width: 85%;
+	border: 1px solid #C2C2C2;
+}
+textarea[class=textarea] {
+	height: 3.7em;
+}
+.entry textarea, .entry input[type=text]{
+	border: 1px solid #C2C2C2;
+}
+
+.entry textarea, .entry input, #surveyForm textarea {
+	background: #FFF;
+	padding: 3px;
+}
+
+.entry select, .entry textarea, .entry input, #surveyForm textarea {
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+}
+
+.entry ul li {
+	padding: 5px 0 ;
+}
+
+.entry ul li input{
+	height: 18px;
+	float: left;
+	clear: left;
+	margin: 2px 2px 0 0;
+}
+
+.entry ul li span{
+	float: left;
+	clear: left;
+	margin: 1px 0 0 0;
+}
+
+.entry ul li label {
+	margin: 0 0 10px 0;
+	font-weight: bold;
+	font-size: 11px;
+	color: #222;
+	width: 100px;	
+}
+
+.entry button {
+	color: #000;
+}
+
+#form-designer  {
+	width: inherit;
+	margin-top: 10px;
+}
+
+#form-designer.fixed {
+		position: fixed;
+		top:0;
+}
+.formControls, .formTabs{
+	color: #000;
+	font-size: 11px;
+}
+.formControls {
+	width: inherit;
+	overflow:hidden;
+	background-color: #C3E1F7;
+	padding-bottom: 10px;
+	border-left: 1px solid #9ED0EF;
+	border-bottom: 1px solid #9ED0EF;
+}
+.formTabs ul li.active {
+	background-color: #C4E2F7;	
+	border-bottom: 1px solid #C3E1F7;
+}
+
+.formTabs{
+	height: 24px;
+	background-color: #FFF;
+	padding: 0;
+	list-style: none;
+	border-bottom: 1px solid #9ED0EF;
+	width: 100%;
+}
+
+.formTabs ul {
+	overflow:hidden;
+}
+
+.formTabs li{
+	float: left;
+    max-width: 100px;
+	font-weight: bold;
+	margin-left: 5px;
+	border: 1px solid #9ED0EF;
+}
+
+.formTabs a {
+	display: block;
+	padding:4px 5px 4px 5px;
+	text-decoration: none;
+	color: #1F7098;
+}
+
+.formTabs a:hover {
+	color: #064A5B;
+	background-color: #C3E1F7;
+}
+.sortable li {
+	width: 99%;
+	background: #FFF;
+	margin: 4px 0;
+}
+
+li.sortable_item {
+	border: 1px solid #FFF;
+	padding: 3px 3px ;
+}
+
+li.sortable_item:hover {
+	border: 1px dashed #8BB6E6;
+	background-color: #E8F5FF;
+
+}
+
+.icon {
+	float: right;
+	margin: 4px 0 0 0px;
+}
+
+/*.icon_button {
+	width: 16px;
+	height: 16px;
+}*/
+.icon a {
+	display: block;
+	float: left;
+	margin-right: 15px;
+}
+
+.icon img {
+	width: 17px;
+	height: 17 px;
+}
+
+li .handle {
+	cursor: move;
+}
+
+li .delete, .icon_button {
+	cursor: pointer;
+}
+
+li .delete {
+	cursor: default;
+	display: block;
+	background-color: #000;
+}
+
+.options ul li {
+	line-height: 1.2em;
+}
+
+.qlabel {
+	width: 80%;
+}
+
+.qlabel label{
+	font-size: 12px;
+	font-weight: normal;
+	color: #000;
+}
+
+div.form-button {
+	margin: 0 auto;
+	width: 100px;
+}
+
+.user-form #form-title {
+	border-bottom: 1px dashed #CCC;
+	display: block;
+	padding: 10px 5px 10px 0;
+	font-size: 15px;
+	margin-bottom: 15px;
+	color: #222;
+}
+.user-form {
+	-moz-box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+	background: none repeat scroll 0 0 #FFFFFF;
+	border: 1px solid #FFF;
+	text-align: left;
+	padding: 15px;
+}
+.user-form textarea {
+	width: 98%;
+	min-height: 70px;
+	padding: 5px;
+}
+
+/*.user-form li {
+	border: none;
+	background-color: #FFF;
+}*/

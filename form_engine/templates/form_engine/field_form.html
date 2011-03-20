@@ -1,0 +1,36 @@
+<ul>
+{% for field in question_form %}
+<li>
+{{ field.errors }}
+{{ field.label_tag }}
+{{ field }}
+<span class="helpText">{{ field.help_text }}</span>
+</li>
+{% endfor %}
+<div class="choicebox">
+	{% if field_choices %}
+	<label>Choices</label>
+	<ul id="upd_choices">
+	{% for  choice in field_choices %}
+		<li><input id="id_choice_{{ choice.id }}" class="text choices" type="text" name="choice-{{ choice.id }}" value="{{ choice.text }}" />
+		   <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a><a href="#" class="delChoice icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+		</li>
+	{% endfor %}
+	{% else %}
+	<ul class="choices">
+  		<li><input class="text choices" type="text" name="qChoices" value="" />
+		     <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a><a href="#" class="delChoice icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+		</li>
+  		<li><input class="text choices" type="text" name="qChoices" value="" />
+		     <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a><a href="#" class="delChoice  icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+		</li>
+  		<li><input class="text choices" type="text" name="qChoices" value="" />
+		     <a href="#" class="addChoice icon"><img class="icon_button" src="/form_media/images/add.png"/></a><a href="#" class="delChoice  icon"><img class="icon_button" src="/form_media/images/delete.png"/></a>
+		</li>
+	{% endif %}
+	</ul>
+</div>
+</ul>
+<input type="hidden" name="s_id" value="{{survey.id}}" />
+<input type="hidden" name="q_id" value="{{question.id}}" class="questionId" />
+<button type="submit" id="saveQuestion" name="saveForm" class="btTxt submit" >save</button>

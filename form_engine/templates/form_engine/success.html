@@ -1,0 +1,47 @@
+{% extends "form_engine/base.html" %}
+
+{% block title %}{{ block.super }} | Submission Successful {% endblock %}
+
+{# override inherited block since the navigation is not needed #}
+{% block left-section %}{% endblock %}
+
+{% block content %}
+	<div class="info-box">
+		Success! Your submission has been saved.
+	</div>
+{% endblock %}
+
+
+{% block javascript %}
+<script language="JavaScript">
+	function redirect() {
+		console.log("redirect set");
+		setTimeout("location.href='{{ success_redirect_url }}'", 5000);
+	}
+	window.onload=function(){ 
+		redirect(); 
+	}
+</script>
+{% endblock %}
+
+{% block css %}
+<style>
+
+.content-left {
+	width:980px;
+}
+
+#content {
+	width: 774px;
+	background-color: #C9EAFC;
+}
+
+.info-box {
+	-moz-box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+	background: none repeat scroll 0 0 #FFFFFF;
+	border: 3px solid #EEE;
+	width: 100% !important;
+	margin: 58px auto 0;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% block title %} {{block.super}}| Form Creator {% endblock %}
+
+{% block left-section %}
+<div id="form-designer">
+	<div id="form-tabs" class="formTabs">
+		<ul>
+			<li><a href="{% url form_template_edit form_id=form_template.id %}">Add Field</a></li>
+			<li><a href="{% url form_settings_update form_id=form_template.id %}">Form Settings</a></li>
+		</ul>	
+		</div>
+	<div class="formControls">
+		{% block form-controls %} {% endblock %}
+	</div>
+</div>
+{% endblock %}
+
+{% block content %}
+<form class="wufoo page">
+	<div class="info">
+		<h2>{{form_template.title}}</h2>
+		<div>{{ form_template.description }}</div>
+	</div>
+	<ul id="qn_items" class="sortable">
+		{% for form in form_template.forms %}
+		{{ form.as_template }}
+		{% endfor %}
+	</ul>
+</form>
+{% endblock %}
+
+{% block javascript %}
+<script type="text/javascript">
+
+$(function() {
+	// floating fixed form designer 
+	var top = $('#form-designer').offset().top - parseFloat($('#form-designer').css('margin-top').replace(/auto/, 0));
+	var total_height = 0;
+	$(window).scroll( function () {
+		total_height = $('#form-designer').offset().top - top + $('#form-designer').height();
+		console.log(total_height);
+		var msie6 = $.browser == 'msie' && $.browser.version < 7;
+		if (!msie6) {
+		  // y position of the scroll is
+			var y = $(this).scrollTop();
+			// whether we have scrolled to a point that's at or below the form
+			if (total_height >= $('.content-left').height()){
+				alert("end reached");
+			}
+			if (y >= top) {
+				// if so, ad the fixed class
+				$('#form-designer').addClass('fixed');
+			} else {
+				// otherwise remove it
+				$('#form-designer').removeClass('fixed');
+			}
+		}
+	});
+});	
+
+$(function() {
+	//disable all input fields in survey edit mode
+	$('#surveyForm input[type=text]').each(function (){
+		$(this).attr("disabled", "disabled");
+	});
+});
+
+$(function() {
+// 		    var pos_top = $('#left').position().top;
+// 	$('.updField').live('click', function() {
+// 			var pos_bot = $('#footer').position().top;
+// 			var pos_new = $(this).position().top;
+// 			var q_form_pos = pos_top-pos_top;
+// 			var itemId = $(this).attr("id");
+// 			var fieldId = itemId.substring('updlstItem'.length);
+// 			// console.log("pos_top:%s pos_bot:%s pos_new:%s q_form_pos:%s itemId:%s
+//			// fieldId:%s",pos_top, pos_bot, pos_new, q_form_pos, itemId, fieldId);
+// 			$('#form-designer').animate(
+// 				{ marginTop: q_form_pos },
+// 				350,
+// 				function() {
+// 					$.ajax({
+// 						type: "GET",
+// 						url: "{% url update_field_ajax form_id=form_template.id %}"+fieldId,
+// 						// data: q_ids.serialize(),
+// 						// dataType: "json",
+// 						success: function(q_data){
+// 							$("div.editField").html(q_data);
+// 							$(".formTabs ul li").removeClass("active"); //Remove any "active" class
+// 							$(".tab_content").hide(); //Hide all tab content
+// 							$("div.editField").fadeIn(); //Fade in the active ID content
+//  							// alert(q_data);
+//  							// $(".formControls").append("<div id='upField'>"+q_data+"</div>");
+// 						},
+// 						error: function(xhr, ajaxOptions, thrownError) {
+// 							alert(xhr + ' ' + ajaxOptions + ' ' + thrownError);
+// 						},
+// 						complete: function() {
+// 							//alert('finished');
+// 						}
+// 					});
+// 				}
+// 			);
+// 		return false;
+//	 });
+
+// $("textarea#id_text").keyup( function () {
+// 	var value = $(this).val();
+// 	var qlabel = $('#updateForm input.questionId').val();
+// 	$("#qLabel_"+qlabel+" label").text(value);
+// 	}).keyup();
+
+	//make question list sortable
+	$(".sortable").sortable({
+		opacity: 0.7,
+		revert: false,
+		axis: 'y',
+		scroll: true,
+		handle: '.handle',
+		update: function() {
+				var fieldOrder = $(this).sortable('serialize', {key:'field'});
+				$.ajax({
+					type: "POST",
+					data: fieldOrder,
+					url: "{% url update_field_order form_id=form_template.id %}",
+					success: function(status){
+					//	alert(status)
+					},
+					error: function(xhr, ajaxOptions, thrownError) {
+						alert(xhr + ' ' + ajaxOptions + ' ' + thrownError);
+					},
+					complete: function() {
+						//alert('finished');
+					}
+				});
+			}
+		});
+	
+	// $('.sortable').disableSelection();
+
+	// handles the slidedown effect for the choice list
+	// $('select.choice_select').live('change', function () {
+	// 	//alert('change');
+	// 	var fieldtype = $(this).val();
+	// 	if (fieldtype in {'radio_list':'','checkbox_list':'','select_box':''}) {
+	// 		$('.choices').slideDown('slow');
+	// 		}
+	// 	else {
+	// 		$('.choices').slideUp('slow');
+	// 		}
+	// 	});
+	// 	
+
+	//Tab code when page loads...
+	// $(".tab_content").hide(); //Hide all content
+	// $(".formTabs ul li:first").addClass("active").show(); //Activate first tab
+	// $(".tab_content:first").show(); //Show first tab content
+	// $(".formTabs ul li").click(function() {
+	// 	$(".formTabs ul li").removeClass("active"); //Remove any "active" class
+	// 	$(this).addClass("active"); //Add "active" class to selected tab
+	// 	$(".tab_content").hide(); //Hide all tab content
+	// 	var activeTab = $(this).find("a").attr("href"); //Find the href attribute value to identify the active tab + content
+	// 	$(activeTab).fadeIn(); //Fade in the active ID content
+	// 	return false;
+	// });
+
+	//activate delete button 
+	$('.delField').live('click',function() {
+		var itemId = $(this).attr("id");
+		var fieldId = itemId.substring('dellstItem'.length);
+			$.ajax({
+				url: "{% url delete_field_ajax form_id=form_template.id %}/"+fieldId,
+				cache: false,
+				success: function(html){
+						$("#bar_"+fieldId).fadeOut('slow',function() {$(this).remove();});
+				},
+				error: function(xhr, ajaxOptions, thrownError) {
+					alert(xhr + ' ' + ajaxOptions + ' ' + thrownError);
+				},
+				complete: function() {
+					//alert('finished');
+				}
+			});
+		return false;
+	});
+
+});
+</script>
+<script type="text/javascript">
+$(function () {
+
+	var num_choice_elms = $('.choices > li').size();
+
+	// multiple choice field actions
+	// add extra input field for choices
+	$("#addChoice").live('click',function() {
+		var $elm_parent= $(this).parent();
+		if($elm_parent.get(0).tagName == 'LI'){
+			var $new_item = $elm_parent.clone();
+			$new_item.find('input').attr('name', 'newChoices').val('');
+			$new_item.hide().insertAfter($elm_parent).fadeIn('slow');
+			num_choice_elms++;
+		}
+		else {
+			alert("parent element is not 'LI'");
+		}
+		return false;
+	});
+
+	// remove choice input from page, mark as deleted
+	$("#delChoice").live('click',function() {
+		$elm_parent = $(this).parent()
+		$target_choice = $elm_parent.find("input");
+		$elm_parent.fadeOut('slow', function() {
+			if ($target_choice.attr("name") !== "newChoices"){
+				$('<input />').attr({
+					'type': 'hidden',
+					'name': 'delChoices', 
+					'value': $target_choice.attr("name") 
+				}).appendTo($elm_parent);
+				$target_choice.remove();
+			}
+			else{
+					$elm_parent..empty().remove();
+			}
+			num_choice_elms--;
+			if (num_choice_elms < 1) {
+				$("<li><input type=\"text\" name=\"newChoices\" class=\"choices\">\
+				<a style=\"width: 25px;\" class=\"uiButton\" id=\"addChoice\"><b>+</b></a>\
+				<a style=\"width: 25px;\" class=\"uiButton\" id=\"delChoice\"><b>-</b></a>\
+				</li>").appendTo($('.choices'));
+				num_choice_elms++;
+			}
+		});
+		return false;
+	});
+});
+</script>
+{% endblock %}
+
+{% block css %}
+<style>
+div.form{
+	padding: 6px;
+	width: 290px;
+	overflow: hidden;
+}
+
+div.form select{
+	line-height: 1.1em;
+/*	padding: 4px;*/
+/*	border:1px solid #999;*/
+}
+
+div.form .choices[class] input[type=text] {
+    width: 75%;
+	border: 1px solid #C2C2C2;
+}
+textarea[class=textarea] {
+	height: 3.7em;
+	width: 95%;
+}
+div.form textarea, div.form input[type=text]{
+	border: 1px solid #C2C2C2;
+}
+
+div.form textarea, div.form input, #surveyForm textarea {
+	background: #FFF;
+	padding: 3px;
+}
+
+div.form textarea, div.form input, #surveyForm textarea {
+	-moz-border-radius: 4px;
+	-webkit-border-radius: 4px;
+}
+ 
+li.form_field {
+	padding: 3px 0 ;	
+}
+.form_field label {
+	font-weight: bold;
+	font-size: 11px;
+	color: #222;
+/*	display: block;*/
+	max-width: 50%;
+}
+
+.form_field input[type=text] {
+	width: 40%;
+}
+
+div.form button {
+	color: #000;
+}
+
+#fieldTypes li {
+/*	display: block;*/
+	list-style-type:none;
+	width: 42%;
+	float: left;
+	overflow: hidden;
+	margin: 3px 15px 3px 5px;
+}
+
+#fieldTypes li a{
+	-moz-border-radius: 5px;
+/*	-moz-box-shadow:0 1px 3px rgba(0, 0, 0, 0.15);*/
+	border: 1px solid #BBB;
+	color:#464646;
+	cursor:pointer;
+	display:block;
+	font-family:"Lucida Grande",Tahoma,Arial,sans-serif;
+	padding:4px;
+	text-decoration:none;
+	text-align: center;
+	background-color: #FFF;
+}
+
+.tab_content {
+	margin-top: 10px;
+}
+
+#content {
+	margin-left: 300px;
+	width:673px;
+}
+
+.content-left {
+	width:975px;
+}
+
+#left {
+	width:300px;
+	padding-top: 0;
+}
+
+#addField a {
+	display:inline-block;
+	width: 25px;
+	height:19px;
+	font-weight: bold;
+	font-size:1.1em;
+	padding:0px;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "form_engine/base.html" %}
+{% block title %} {{survey.title}} {% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/site_media/css/structure.css" type="text/css" />
+<link rel="stylesheet" href="/site_media/css/form.css" type="text/css" />
+<link rel="stylesheet" href="/site_media/css/theme.css" type="text/css" />
+{% endblock %}
+
+{% block controls %}
+<form id="questionForm" name="question" class="entry" autocomplete="off"  method="post" action="{{survey.get_absolute_url}}/update/">
+	{% include "form_engine/field_form.html" %}
+</form>
+{% endblock %}

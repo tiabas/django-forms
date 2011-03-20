@@ -1,0 +1,10 @@
+{% if question %}
+<form id="updateForm" name="question" class="entry" autocomplete="off"  method="post" action="{% url update_field form_id=form_template.id question_id=question.id %}">
+	{% csrf_token %}
+	{% include "form_engine/field_form.html" %}
+</form>
+{% else %}
+<div class="info-box">
+	<p> Please click on the field you wish to edit</p>
+</div>
+{% endif %}

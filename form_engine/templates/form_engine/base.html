@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+{% load forms_filters %}
+
+{% block inset %}
+<span class="app-title">Forms</span>
+{% endblock %}
+
+{% block left-section %}
+
+<ul class="menu-links">
+	{% url forms_home as panel_link %}
+	<li class="panel {% active request panel_link %}"><a class="{% active request panel_link %}" href="{% url forms_home %}">
+		My Forms ({{ request.user.id|form_templates }})</a></li>
+	{% url my_filled_forms as panel_link %}
+	<li class="panel {% active request panel_link %}"><a class="{% active request panel_link %}" href="{% url my_filled_forms %}">My Entries ({{ request.user.id|filled_forms }})</a></li>
+	{% url form_template_create as panel_link %}
+	<li class="panel {% active request panel_link %}"><a class="{% active request panel_link %}" href="{% url form_template_create %}">Create Template</a></li>
+	{% url form_template_public as panel_link %}
+	<li class="panel"><a class="{% active request panel_link %}" href="{% url form_template_public %}">Import Template ({{ request.user.id|public_templates }})</a></li>
+	{% url my_deleted_templates as panel_link %}
+	<li class="panel {% active request panel_link %}"><a class="{% active request panel_link %}" href="{% url my_deleted_templates %}">Trash ({{ request.user.id|deleted_forms }})</a></li>
+</ul>
+{% endblock %}

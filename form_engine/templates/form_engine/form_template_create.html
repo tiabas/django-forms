@@ -1,0 +1,35 @@
+{% extends "form_engine/base.html" %}
+{% load custom_filters %}
+{% block title %}{{ block.super }} | New Form {% endblock %}
+
+{% block content %}
+<h4>Create new template</h2>
+	<br />
+<div class="stylized">
+<form autocomplete="on"  method="post" action=".">
+	{% csrf_token %}
+	<table cellspacing="0" width="100%">
+		<tbody>
+		{% for field in template_form %}
+		<tr>
+			<th>{{ field.label_tag }}</th>
+			<td>{{ field }} <br /><span class="helpText hint">{{ field.help_text }}</span><span>{{ field.errors }}</span></td>
+		</tr>
+	{% endfor %}
+	<tr>
+		<th></th>
+		<td><input type="submit" name="create_form" value="Submit" /></td>
+	</table>
+</form>
+</div>
+{% endblock %}
+
+{% block right-section %}
+<div id="right">
+	<div class="faq-side-box">
+	<h4 style="margin-bottom:5px;">Create form</h4>
+	<p class="explanation">Enter the necessary information for your form. After clicking on 'save' you will be
+		  taken to a new page where you can create a layout for your form.</p>
+	</div>
+</div>
+{% endblock %}

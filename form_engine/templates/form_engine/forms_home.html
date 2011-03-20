@@ -1,0 +1,44 @@
+{% extends "form_engine/base.html" %}
+{% load custom_filters %}
+{% load forms_filters %}
+
+{% block title %}{{ block.super }} | Forms {% endblock %}
+
+{% block content %}
+{% if not user_templates %}
+<div class="info-box">
+	<span class="headline">Welcome to the igroups form creation and management application</span>
+	<p>You currently have no forms in your potfolio. You need to either create a
+	new form or import one of the publicly available forms
+	<div id="buttons">
+	<a class="link-button" href="{% url form_template_create %}" title="Create a new form"><span>Create Form</span></a>
+	<a class="link-button" href="{% url form_template_public %}" title="import_form"><span>Import Form</span></a>
+	</div>
+	</p>
+</div>
+{% else %}
+<div class="template-list">
+	<ul>
+	{% for template in user_templates %}
+	<li class="{% cycle 'odd' 'even' %} template-entry">
+		    <a href="{% url form_template_view form_id=template.id %}"><h4>{{ template }}</h4></a>
+                    <p class="medium-text">{{ template.description }}</p>
+                    <p class="views"></p>
+                    <p class="rating"></p>
+		    <div>
+			<ul class="horizontal">
+			<li ><a class="link-button" href="{% url form_template_edit template.id %}">Edit</a></li>
+			<!-- <li ><a class="link-button" href="">Share</a></li> -->
+			<li ><a class="link-button" href="{% url form_template_delete template.id %}">Delete</a></li>
+			<li ><a class="link-button" href="{% url form_send_data form_slug=template.slug %}">Preview</a></li>
+			<!-- <li ><a class="link-button" href="{% url form_template_edit template.id %}">Print</a></li> -->
+			<li ><a class="link-button" href="{% url form_template_responses template.id %}">Responses</a></li>
+			<!-- <li ><a class="link-button" href="{% url form_template_copy template.id %}">Copy</a></li> -->
+			</ul>
+                    </div>
+	</li>
+	{% endfor %}
+	</ul>
+</div>
+{% endif %}
+{% endblock %}

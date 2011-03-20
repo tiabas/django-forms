@@ -1,0 +1,27 @@
+{% extends "form_engine/base.html" %}
+{% block title %}{{ block.super }} | Import Template {% endblock %}
+
+{% block content %}
+	<h2>Import Form Template</h2>
+	<br />
+<div class="stylized">
+	<form autocomplete="on"  method="post" action=".">
+		{% csrf_token %}
+		<table cellspacing="0" width="100%">
+			<tbody>
+			{% for field in form %}
+			<tr>
+				<th>{{ field.label_tag }}</th>
+				<td>{{ field }}<br />
+					<span class="helpText hint">{{ field.help_text }}</span>
+					{{ field.errors }}
+				</td>
+			</tr>
+		{% endfor %}
+		<tr>
+			<th></th>
+			<td><button type="submit" name="save"/>Import</button></td>
+		</table>
+	</form>
+</div>
+{% endblock %}
