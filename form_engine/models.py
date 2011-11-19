@@ -13,8 +13,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from utils.model_utils import copy_model_instance
 from utils.slugutils import unique_slugify
 from django.utils.html import escape
-from django.db.models import Q
-from django.db.models import Sum
+from django.db.models import Q, Sum
+from django.db.models.signals import post_delete, pre_delete
 
 ACCESS_LEVEL = (
 	('user', 'User'),
@@ -66,7 +66,7 @@ class TemplateManager(models.Manager):
 		return self.filter(author=author)
 		
 	def all_filled(self, user_id):
-		return len(Answer.objects.filter(user=user_id).values('session_uuid').distinct())
+		return len(Answer.objects.filter(user=user_id).values('form_session__uuid').distinct())
 	
 	def all_deleted(self, author=None):
 		if author:
@@ -125,6 +125,12 @@ class Survey(models.Model):
 	objects = models.Manager()
 	author_manager = TemplateManager()
 	
+	class Meta:
+		# unique_together = ('slug','author')
+		permissions = (
+						("can_manage", "Can manage forms"),
+					)
+		
 	@property
 	def answer_count(self):
 		if hasattr(self, '_answer_count'):
@@ -172,129 +178,6 @@ class Survey(models.Model):
 	@models.permalink
 	def get_absolute_url(self, user=None):
 		return ('form_template_view', (), {'form_id': str(self.id)})
-
-	#class Meta:
-		#unique_together = ('slug','author')
-
-class Question(models.Model):
-	
-	survey = models.ForeignKey(Survey, related_name="questions")
-	# sub_field = models.ForeignKey(self, related_name="sub_fields", blank=True, null=True, default=None)
-	text = models.CharField(max_length=300)
-	hint = models.CharField(max_length=400, null=True, blank=True)
-	creation_date = models.DateTimeField("date created",default=datetime.now)
-	qtype = models.CharField(_('field widget type'), max_length=25, choices=QTYPE_CHOICES)#the widget type 
-	qinputformat = models.SmallIntegerField(_('field data type'), max_length=2, choices=((0, 'Character'), (1, 'Numeric'), (2, 'Binary')), default=1)
-	required = models.BooleanField(default=True)
-	order = models.IntegerField(null=True, blank=True, default=0)
-	access_level = models.CharField(_('Field Access'),default="user", max_length=20, choices=ACCESS_LEVEL)
-	# Define if the user must select at least 'choice_num_min' number of
-	# choices and at most 'choice_num_max'
-	choice_num_min = models.IntegerField("minimum number of choices",null=True, blank=True)
-	choice_num_max = models.IntegerField("maximum number of choices",null=True, blank=True)
-	
-	class Meta:
-		unique_together = ('survey', 'text')
-
-	@property
-	def answer_count(self):
-		if hasattr(self, '_answer_count'):
-			return self._answer_count
-		self._answer_count = self.answers.count()
-		return self._answer_count
-	
-	def get_attribute(self, attr, default=None):
-		try:
-			value = self.field_attrs.get(attribute=attr).value
-			return value
-		except ObjectDoesNotExist:
-			return default
-			
-	def is_multiple_choice(self):
-		#TODO: This method of getting the form type seems crude to me
-		#It would be nice to clean this up 
-		if self.qtype in MULTIPLE_CHOICE_FIELDS:
-			return True
-		else:
-			return False
-
-	def is_numeric(self):
-		#TODO: This method of getting the form type seems crude to me
-		#It would be nice to clean this up 
-		if self.qtype in NUMERIC_FIELDS:
-			return True
-		else:
-			return False
-			
-	def get_type(self):
-		return self.qtype
-			
-	def make_copy(self, form_template):
-		new_question = copy_model_instance(self)
-		new_question.survey = form_template
-		new_question.save()
-		if self.is_multiple_choice() and len(self.choices.all()):
-			for choice in self.choices.all():
-				c = copy_model_instance(choice)
-				c.question = new_question
-				c.save()
-		return new_question
-
-	def __unicode__(self):
-		return escape(self.text)
-
-	def get_absolute_url(self):
-		return "/survey/question/%s" % (self.id)
-
-class FieldAttribute(models.Model):
-	
-	template_field = models.ForeignKey(Question, related_name="field_attrs")
-	attribute = models.CharField(max_length=30)
-	value = models.CharField(max_length=30)
-	
-	def __unicode__(self):
-		return "%s: %s" % (self.attribute, self.value)
-	
-class Choice(models.Model):
-
-	question = models.ForeignKey(Question, related_name="choices")
-	text = models.CharField(max_length=30)
-	order = models.IntegerField(null=True,blank=True)
-	
-	def __unicode__(self):
-		return self.text
-
-	class Meta:
-		unique_together = ('question', 'text')
-
-
-class AnswerManager(models.Manager):
-	
-	def user_form_values(self, user_id, uuid, ):
-		return self.filter(user=user_id, session_uuid=uuid).order_by('question__order').values('question__text', 'text')
-	
-	def get_answers_by_uuid(self, uuid):
-		return self.filter(session_uuid=uuid).order_by('question__order')
-		
-	def get_sum_by_uuid(self, uuid):
-		return self.filter(session_uuid=uuid).order_by('question__order').aggregate(Sum('text')).get('text__sum', 0)
-		
-class Answer(models.Model):
-	user = models.ForeignKey(User, related_name="answers_by")
-	question = models.ForeignKey(Question, related_name="answers")
-	text = models.TextField(max_length=500)
-	session_key = models.CharField(_("session key"), blank=True, null=True, max_length=40)
-	session_uuid = models.CharField(_("Session unique identifier"), max_length=40)
-	submission_date = models.DateTimeField("submitted on",default=datetime.now)
-	
-	objects = models.Manager()
-	manager = AnswerManager()
-
-	class Meta:
-		unique_together = ('user', 'session_uuid', 'session_key')
-
-	def __unicode__(self):
-		return u"%s: %s" % (self.question, escape(self.text))
 
 class FormSessionManager(models.Manager):
 	#hack for getting all complteted forms
@@ -347,6 +230,134 @@ class FormSession(models.Model):
 			answer.delete()
 		super(FormSession, self).delete()
 		
-
 	class Meta:
 		unique_together = ('form', 'user', 'uuid')
+
+class Question(models.Model):
+	
+	survey = models.ForeignKey(Survey, related_name="questions")
+	# sub_field = models.ForeignKey(self, related_name="sub_fields", blank=True, null=True, default=None)
+	text = models.CharField(max_length=300)
+	hint = models.CharField(max_length=400, null=True, blank=True)
+	creation_date = models.DateTimeField("date created",default=datetime.now)
+	qtype = models.CharField(_('field widget type'), max_length=25, choices=QTYPE_CHOICES)#the widget type 
+	qinputformat = models.SmallIntegerField(_('field data type'), max_length=2, choices=((0, 'Character'), (1, 'Numeric'), (2, 'Binary')), default=1)
+	required = models.BooleanField(default=True)
+	order = models.IntegerField(null=True, blank=True, default=0)
+	access_level = models.CharField(_('Field Access'),default="user", max_length=20, choices=ACCESS_LEVEL)
+	# Define if the user must select at least 'choice_num_min' number of
+	# choices and at most 'choice_num_max'
+	choice_num_min = models.IntegerField("minimum number of choices",null=True, blank=True)
+	choice_num_max = models.IntegerField("maximum number of choices",null=True, blank=True)
+	
+	# class Meta:
+	# 	unique_together = ('survey', 'text')
+
+	@property
+	def answer_count(self):
+		if hasattr(self, '_answer_count'):
+			return self._answer_count
+		self._answer_count = self.answers.count()
+		return self._answer_count
+	
+	def get_attribute(self, attr, default=None):
+		try:
+			value = self.field_attrs.get(attribute=attr).value
+			return value
+		except ObjectDoesNotExist:
+			return default
+			
+	def is_multiple_choice(self):
+		#TODO: This method of getting the form type seems crude to me
+		#It would be nice to clean this up 
+		if self.qtype in MULTIPLE_CHOICE_FIELDS:
+			return True
+		else:
+			return False
+
+	def is_numeric(self):
+		#TODO: This method of getting the form type seems crude to me
+		#It would be nice to clean this up 
+		if self.qtype in NUMERIC_FIELDS:
+			return True
+		else:
+			return False
+			
+	def get_type(self):
+		return self.qtype
+			
+	def make_copy(self, form_template):
+		new_question = copy_model_instance(self)
+		new_question.survey = form_template
+		new_question.save()
+		if self.is_multiple_choice() and len(self.choices.all()):
+			for choice in self.choices.all():
+				c = copy_model_instance(choice)
+				c.question = new_question
+				c.save()
+		return new_question
+
+	def __unicode__(self):
+		return escape(self.text)
+
+	def get_absolute_url(self):
+		return "/survey/question/%s" % (self.id)
+		
+def delete_answers_for_question(sender, **kwargs):
+	form_field=kwargs.get('instance', None)
+	if form_field != None:
+		field_responses = form_field.answers.all()
+		for response in field_responses:
+			response.delete()
+		
+pre_delete.connect(delete_answers_for_question, sender=Question)
+
+class FieldAttribute(models.Model):
+	
+	template_field = models.ForeignKey(Question, related_name="field_attrs")
+	attribute = models.CharField(max_length=30)
+	value = models.CharField(max_length=30)
+	
+	def __unicode__(self):
+		return "%s: %s" % (self.attribute, self.value)
+	
+class Choice(models.Model):
+
+	question = models.ForeignKey(Question, related_name="choices")
+	text = models.CharField(max_length=30)
+	order = models.IntegerField(null=True,blank=True)
+	
+	def __unicode__(self):
+		return self.text
+
+	class Meta:
+		unique_together = ('question', 'text')
+
+
+class AnswerManager(models.Manager):
+	
+	def user_form_values(self, user_id, uuid):
+		return self.filter(user=user_id, form_session__uuid=uuid).order_by('question__order').values('question__text', 'text')
+	
+	def get_answers_by_uuid(self, uuid):
+		return self.filter(form_session__uuid=uuid).order_by('question__order')
+		
+	def get_sum_by_uuid(self, uuid):
+		return self.filter(form_session__uuid=uuid).order_by('question__order').aggregate(Sum('text')).get('text__sum', 0)
+		
+class Answer(models.Model):
+	user = models.ForeignKey(User, related_name="answers_by")
+	question = models.ForeignKey(Question, related_name="answers")
+	form_session = models.ForeignKey(FormSession, related_name="entries")
+	text = models.TextField(max_length=500)
+	session_key = models.CharField(_("session key"), blank=True, null=True, max_length=40)
+	submission_date = models.DateTimeField("submitted on", default=datetime.now())
+	
+	objects = models.Manager()
+	manager = AnswerManager()
+
+	class Meta:
+		unique_together = ('user', 'question', 'form_session', 'session_key')
+
+	def __unicode__(self):
+		return u"%s" % escape(self.text)

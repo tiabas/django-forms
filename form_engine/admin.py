@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 import django.contrib.contenttypes.generic
-from form_engine.models import *
+from apps.form_engine.models import *
 
 class FormSessionAdmin(admin.ModelAdmin):
 	list_display = ('form', 'uuid', 'user', 'complete')
@@ -15,8 +15,8 @@ class AnswerInline(admin.TabularInline):
 	model = Answer
 
 class AnswerAdmin(admin.ModelAdmin):
-	list_display = ('user','question','text','submission_date','session_key','session_uuid')
-	list_filter = ('session_key', 'session_uuid' )
+	list_display = ('user','question','text','submission_date','session_key','form_session')
+	list_filter = ('session_key', 'form_session' )
 
 class ChoiceAdmin(admin.ModelAdmin):
 	list_display = ('text','question')

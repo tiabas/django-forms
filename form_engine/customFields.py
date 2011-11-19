@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django.forms import MultiValueField, CharField, Field
-from form_engine.customWidgets import LocationWidget
+from apps.form_engine.customWidgets import LocationWidget
 
 class LocationField(Field):
 	widget = LocationWidget

@@ -1,5 +1,4 @@
-{% extends "form_engine/form_builder_base.html" %}
-{% block title %} {{block.super}}| Form Creator {% endblock %}
+{% extends "form_engine/base_designer.html" %}
 
 {% block form-controls %}
 <div id="addField" class="tab_content">
@@ -10,7 +9,7 @@
 		{% for field in settings_form  %}
 			<li class="form_field">
 				{% if not field.is_hidden and field.label %} 
-					{{ field.label }}: 
+				<label for="">	{{ field.label }} </label> 
 				{% endif %} 
 					{{ field }}
 			</li>
@@ -20,7 +19,9 @@
 			</li>
 			{% endif %}
 		{% endfor %}
-		<li><button type="submit" id="saveQuestion" name="saveForm" class="btTxt submit" >save</button></li>
+		<li class="form_field">
+			<button type="submit" id="saveQuestion" name="saveForm" class="uiButton submit" >save</button>
+		</li>
 		</ul>
 	</div>
 	</form>

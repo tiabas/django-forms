@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %} {{form_template.title}} {% endblock %}
+
+{% block middle-section %}
+<div class="user-form ">
+	<span id="form-title">{{ form_template.description }}</span>
+	<form class="wufoo" autocomplete="on"  method="post" action="{% url form_send_data form_slug=form_template.slug form_uuid=form_template.form_uuid %}" >
+		{% csrf_token %}
+		<input name="next" type="hidden" value="{{ next }}" />
+		<ul>
+			{% for form in forms_collection %}
+			{{ form.as_input_field }}
+			{% endfor %}
+		</ul>
+		<div class="form-button">
+			<button class="uiButton" type="submit">Submit</button>
+			<button class="uiButton" type="reset">Clear</button>
+		</div>
+	</form>
+</div>
+{% endblock %}
+
+{% block css %}
+{{ block.super }}
+<link rel="stylesheet" href="/form_media/css/theme.css" type="text/css" />
+
+<style>
+#header{
+	margin:0;
+}
+</style>
+{% endblock %}

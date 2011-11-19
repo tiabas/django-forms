@@ -24,3 +24,16 @@ def tablecols(data, cols):
 	if len(row) > 0:
 		rows.append(row)
 	return rows
+	
+@register.filter(name='objectAtIndex')
+def tablecols(array, index):
+	if type(index) != int:
+		raise template.TemplateSyntaxError("objectAtIndex takes an integer as it's second argument")
+	print list(array)
+	print index
+	if type(list(array)) != list:
+		raise template.TemplateSyntaxError("objectAtIndex takes an array as it's first argument")
+	try:
+		return array[index]
+	except:
+		return None

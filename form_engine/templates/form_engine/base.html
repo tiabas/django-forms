@@ -1,9 +1,12 @@
 {% extends "base.html" %}
+
 {% load custom_filters %}
+
 {% load forms_filters %}
 
-{% block inset %}
-<span class="app-title">Forms</span>
+{% block css %}
+	{{ block.super }}
+	<link rel="stylesheet" href="/form_media/css/theme.css" type="text/css" />
 {% endblock %}
 
 {% block left-section %}

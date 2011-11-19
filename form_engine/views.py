@@ -1,41 +1,32 @@
+# -*- coding: utf-8 -*-
+# Create your views here.
 import uuid
-from django.db import models
-from django.db.models import Q
-from django.db.models import AutoField
+import simplejson
+from django.db.models import Q, AutoField
+from django.db import transaction
 from django.conf import settings
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import redirect_to_login
-from django.http import HttpResponseRedirect, HttpResponse, Http404, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseRedirect, Http404, HttpResponseForbidden, HttpResponseNotFound
 from django.template import loader, RequestContext, Context, Template
-from django.template.defaultfilters import slugify
 from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404, render_to_response
 from django.utils.translation import ugettext_lazy as _
 from django.utils import simplejson
-from django.forms.formsets import formset_factory
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.admin.views.decorators import staff_member_required
-from form_engine.models import *
-from form_engine.forms import *
-from form_engine.decorators import authorize_form
-from form_engine.models import QTYPE_CHOICES
+
+from apps.form_engine.models import *
+from apps.form_engine.forms import *
+from apps.form_engine.decorators import authorize_form
+from apps.form_engine.models import QTYPE_CHOICES
 
 SELECT_FIELDS = ['select_box', 'radio_list', 'checkbox_list']
 
-def sample_forms(request, 
-					template_name='form_engine/sample_forms.html'):
-	
-	integerForm = IntegerFieldForm()
-	variables= RequestContext(request, {
-			'request': request,
-			'integerForm': integerForm,
-		})
-	return render_to_response(template_name,variables)
-	
+@login_required	
 def view_public_templates(request,
-				template_name='form_engine/view_public_forms.html'):
+				template_name='form_engine/public_forms.html'):
 				
 	public_templates = Survey.objects.filter(public=True)
 	variables= RequestContext(request, {
@@ -44,6 +35,8 @@ def view_public_templates(request,
 	})	
 	return render_to_response(template_name,variables)
 
+@login_required
+@transaction.commit_on_success
 def import_form_template(request,
 				template_slug,
 				template_name='form_engine/import_template.html'):
@@ -61,14 +54,16 @@ def import_form_template(request,
 	})
 	return render_to_response(template_name,variables)
 
+@login_required
+@transaction.commit_on_success
 def add_field_type(request, form_id, field_type,
-					template_name='form_engine/add_field_type.html'):
+					template_name='form_engine/update_field.html'):
 	
 	template_field_form = get_form_for_field_type(field_type)
 	if not template_field_form:
 		raise HttpResponseNotFound("<p>Invalid field type: </p>" % request.POST.get('qtype'))
 	form_template = get_object_or_404(Survey, pk=form_id)
-	form_template.forms = forms_for_survey_no_prefix(request, form_template)
+	item_forms = forms_for_survey_no_prefix(request, form_template)
 	if request.method == 'POST':
 		response_dict = {}
 		template_field_form = get_form_for_field_type(field_type, None, data=request.POST or None)
@@ -103,14 +98,16 @@ def add_field_type(request, form_id, field_type,
 	variables= RequestContext(request, {
 				'request': request,
 				'form_template': form_template,
+				'item_forms': item_forms,
 				'question_form': template_field_form,
 				'field_type':field_type,
 			})
 	return render_to_response(template_name,variables)
 
 @login_required
-def question_update(request, form_id, question_id,
-					template_name='form_engine/update_field_type.html'):
+@transaction.commit_on_success
+def update_field(request, form_id, question_id,
+					template_name='form_engine/update_field.html'):
 	"""
 	Params: form id, question id
 
@@ -123,7 +120,7 @@ def question_update(request, form_id, question_id,
 		otherwise, redirect to form detail page
 	"""
 	form_template = get_object_or_404(Survey, pk=form_id)
-	form_template.forms = forms_for_survey_no_prefix(request, form_template)
+	item_forms = forms_for_survey_no_prefix(request, form_template)
 	try:	
 		template_field = Question.objects.get(id=question_id, survey=form_template)
 	except ObjectDoesNotExist:
@@ -135,44 +132,49 @@ def question_update(request, form_id, question_id,
 		postdata = request.POST.copy()
 		if template_field_update_form.is_valid():
 			template_field_update_form.save(form_template)
-
 			return HttpResponseRedirect(reverse('form_template_edit', kwargs={'form_id': form_template.id}))
 	field_choices = template_field.choices.all()
 	variables = RequestContext(request, {
 					'request': request,
 					'form_template': form_template,
+					'item_forms': item_forms,
 					'question': template_field,
 					'question_form': template_field_update_form,
 					'field_choices': field_choices
 					})
 	if request.is_ajax():
-		print "ajax call"
 		ajax_response = render_to_string('form_engine/field_update_form.html', variables)
 		return HttpResponse(ajax_response)
 	return render_to_response(template_name, variables)
 
 @login_required
-def question_delete(request, form_id, question_id):
+@transaction.commit_on_success
+def question_delete(request, form_id):
 	"""
 	Takes the form_template id of selected question. Retrieves question id from ajax
 	submitted POST data.
 	"""
-	form_template = get_object_or_404(Survey, pk=form_id)
-	response_dict = {}
-	try:
-		question = Question.objects.get(id=question_id, survey=form_template)
-		question.delete()
-		response_dict.update({'success': True})
-		response_dict.update({'result': "Field successfully deleted."})
-	except Question.DoesNotExist:
-		response_dict.update({'success': True})
-		response_dict.update({'result': "Field does not exist!"})
-		#1.display error page
-		#2.redirect back to form detail
-	if request.is_ajax():
-		return HttpResponse("Field successfully deleted! ajaxlly")
-	else:
-		return HttpResponseRedirect(reverse('form_template_edit', kwargs={'form_id': form_template.id}))
+	if request.method == 'POST':
+		question_id = request.POST.get('question_id', False)
+		
+		form_template = get_object_or_404(Survey, pk=form_id)
+		if request.user != form_template.author:
+			return HttpResponseForbidden()
+		response_dict = {}
+		try:
+			question = Question.objects.get(id=question_id, survey=form_template)
+			question.delete()
+			response_dict.update({'success': 'true'})
+			response_dict.update({'result': "Field successfully deleted."})
+		except ObjectDoesNotExist:
+			response_dict.update({'success': 'false'})
+			response_dict.update({'result': "Field does not exist!"})
+			if not request.is_ajax():
+				return HttpResponseNotFound()
+		if request.is_ajax():
+			return HttpResponse(simplejson.dumps(response_dict))
+		else:
+			return HttpResponseRedirect(reverse('form_template_edit', kwargs={'form_id': form_template.id}))
 
 @login_required
 def question_get(request,form_id):
@@ -186,6 +188,7 @@ def question_get(request,form_id):
 			return HttpResponse("Request can only be made asynchronously!")
 
 @login_required
+@transaction.commit_on_success
 def questions_update_order(request,form_id):
 	"""
 	Params: magicform id, question id
@@ -195,7 +198,7 @@ def questions_update_order(request,form_id):
 	
 	Return:	A message indicating whether the action was successful or not
 	TODO:	Error checking; since the re-order relies heavily on the fact that the submitted data does not have it's
-		array indices modified during transfer. A better way that guarantees order integrity is necessary
+	array indices modified during transfer. A better way that guarantees order integrity is necessary
 	"""
 	magicform = get_object_or_404(Survey, id=form_id)
 	if request.method == "POST":
@@ -212,6 +215,7 @@ def questions_update_order(request,form_id):
 	return HttpResponse("Re-ordering failed!")
 
 @login_required
+@transaction.commit_on_success
 def choice_add(request,question_id):
 	question = get_object_or_404(Question, id=question_id)
 	if request.method == "POST":
@@ -230,6 +234,7 @@ def choice_add(request,question_id):
 
 
 @login_required
+@transaction.commit_on_success
 def save_form_field(request, form_id,
 						template_name='form_engine/field_list_item.html'):
 	"""
@@ -261,8 +266,7 @@ def save_form_field(request, form_id,
 	return HttpResponseRedirect(reverse('form_template_edit', kwargs={'form_id': magicform.id}))
 
 @login_required 
-
-@login_required
+@transaction.commit_on_success
 def question_add(request,form_id):
 	"""
 	Params: form id
@@ -279,8 +283,7 @@ def question_add(request,form_id):
 		question_choices = request.POST.getlist('qChoices')
 		_qform = QuestionModelForm(request.POST, prefix="qn")
 		if _qform.is_valid():
-			new_question = _qform.save(commit=False)
-			# save but don't commit yet, we need to add the template id
+			new_question = _qform.save(commit=False) # save but don't commit yet, we need to add the template id
 			new_question.survey = magicform
 			new_question.save()
 			if new_question.qtype in SELECT_FIELDS and question_choices:
@@ -319,7 +322,7 @@ def view_main_page(request, template_name='form_engine/forms_home.html'):
 @login_required
 def view_form_entry(request,
 					form_uuid= None,
-					template_name='form_engine/forms_view_entry.html',
+					template_name='form_engine/view_entry.html',
 					*args, **kwargs):
 					
 	user_form = Survey.objects.get(form_sessions__uuid=form_uuid)
@@ -337,7 +340,7 @@ def view_form_entry(request,
 	return render_to_response( template_name, variables)
 
 @login_required
-def view_filled_forms(request, template_name='form_engine/forms_view_filled.html'):
+def view_filled_forms(request, template_name='form_engine/view_entries.html'):
 	
 	user_sessions_list = FormSession.manager.user_sessions(request.user)
 	count_undeleted = Survey.author_manager.num_active(request.user)
@@ -354,7 +357,7 @@ def view_filled_forms(request, template_name='form_engine/forms_view_filled.html
 
 @login_required
 def view_deleted_templates(request,
- 			template_name='form_engine/form_deleted_templates.html',
+ 			template_name='form_engine/deleted_templates.html',
 			extra_context= None):
 	
 	my_deleted_templates = Survey.objects.filter(author=request.user, deleted=True)
@@ -374,7 +377,7 @@ def view_deleted_templates(request,
 @login_required
 def view_template_responses(request, 
 			form_id, 
-			template_name='form_engine/form_template_results.html',
+			template_name='form_engine/responses.html',
 			extra_context= None):
 	
 	form_template = get_object_or_404(Survey, pk=form_id)
@@ -386,7 +389,7 @@ def view_template_responses(request,
 	count_filled = Survey.author_manager.all_filled(request.user)
 	form_reponses = {}
 	for session in form_sessions:
-		answers = Answer.objects.filter(question__survey__id=form_template.id, session_uuid=session.uuid).order_by('question__order')
+		answers = Answer.objects.filter(question__survey__id=form_template.id, form_session=session).order_by('question__order')
 		if answers:
 			form_reponses.update({session: answers})
 	variables= RequestContext(request, {
@@ -401,8 +404,9 @@ def view_template_responses(request,
 	return render_to_response(template_name, variables)
 
 @login_required
+@transaction.commit_on_success
 def create_form_template(request, 
-			template_name='form_engine/form_template_create.html',
+			template_name='form_engine/new_template.html',
 			extra_context= None):
 			
 	form = SurveyModelForm()
@@ -429,9 +433,10 @@ def create_form_template(request,
 	return render_to_response(template_name, variables)
 
 @login_required
+@transaction.commit_on_success
 def copy_form_template(request,
  			form_id,
-			template_name='form_engine/form_template_create.html',
+			template_name='form_engine/new_template.html',
 			extra_context= None):
 			
 	form_template = get_object_or_404(Survey, pk=form_id)
@@ -439,6 +444,7 @@ def copy_form_template(request,
 	return HttpResponseRedirect(reverse('forms_home'))
 	
 @login_required
+@transaction.commit_on_success
 def delete_form_template(request, form_id):
 
 	target_template = get_object_or_404(Survey, pk=form_id)
@@ -448,6 +454,7 @@ def delete_form_template(request, form_id):
 	return HttpResponseRedirect(reverse('forms_home'))
 
 @login_required
+@transaction.commit_on_success
 def restore_deleted_template(request, form_id):
 	target_template = get_object_or_404(Survey, pk=form_id)
 	if target_template:
@@ -458,7 +465,7 @@ def restore_deleted_template(request, form_id):
 @login_required
 def edit_form_template(request,
 			form_id,
-			template_name='form_engine/form.html',
+			template_name='form_engine/edit_template.html',
 			extra_context= None):
 		
 	"""
@@ -468,12 +475,13 @@ def edit_form_template(request,
 	# if form_template.has_answers:
 	# 	return HttpResponse("Template cannot be edited because it has data attached to it")
 	form_template.update_form = SurveyModelForm(instance=form_template)
-	form_template.forms = forms_for_survey_no_prefix(request, form_template)
+	item_forms = forms_for_survey_no_prefix(request, form_template)
 	question_form = QuestionModelForm(prefix="qn")
 	field_types = dict(QTYPE_CHOICES)
 	variables= RequestContext(request, {
 					'request': request,
 					'form_template': form_template,
+					'item_forms': item_forms,
 					'question_form': question_form,
 					'field_types': field_types,
 		})
@@ -482,7 +490,7 @@ def edit_form_template(request,
 @login_required
 def preview_form_template(request,
 			form_id,
-			template_name='form_engine/form_template_view.html',
+			template_name='form_engine/view_form.html',
 			extra_context= None):
 	"""
 	Displays page with a form that can be filled out by any user
@@ -499,12 +507,13 @@ def preview_form_template(request,
 	
 @login_required
 @authorize_form
-def process_submitted_data(request,
+@transaction.commit_on_success
+def process_submission(request,
  			form_slug,
 			form_uuid=None,
 			allow_edit_existing_answers=True,
 			default_redirect='/',
-			template_name='form_engine/form_template_view.html',):
+			template_name='form_engine/view_form.html',):
 	"""
 	Displays survey to user for data entry
 	if sessions are enabled, create a key based on the current form's id and
@@ -526,22 +535,27 @@ def process_submitted_data(request,
 	if hasattr(request, 'session') and request.method == 'GET':
 		request.session[skey]= (request.session.get(skey, False) or request.method == 'POST')
 		request.session[suid] = form_uuid
-		request.session.modified = True # enforce the cookie save.
-	forms_collection = forms_for_survey(request, form_template, form_uuid)
+		request.session.modified = True
+	try:
+		user_session = FormSession.objects.get(uuid=form_uuid)
+	except ObjectDoesNotExist:
+		user_session = FormSession.manager.create_form_session(request.user, form_template, form_uuid)
+	forms_collection = forms_for_survey(request, form_template, user_session)
 	if request.method == 'POST':
 		if all(form.is_valid() for form in forms_collection):
 			for form in forms_collection:
 				form.save()
-			# since the form has valid data marked, mark the current user session as complete
-			try:
-				user_session = FormSession.objects.get(uuid=form_uuid)
-			except ObjectDoesNotExist:
-				user_session = FormSession.manager.create_form_session(request.user, form_template, form_uuid)	
+			# since the form has valid data marked, mark the current user session as complete	
 			user_session.complete = True
 			user_session.complete_date = datetime.now()
 			user_session.save()
+			# delete the current session information 
+			request.session[suid] = None
+			request.session.modified = True # enforce the cookie save.
 			#redirect to the form completion page
-			return HttpResponseRedirect("%s?rdt=%s" % (reverse('form_success_page'), request.POST.get('next', default_redirect)))
+			redirect_url = request.POST.get('next', default_redirect or reverse('forms_home'))
+			
+			return HttpResponseRedirect("%s?next=%s" % (reverse('form_success_page'), redirect_url))
 		print [form.errors for form in forms_collection]
 	redirect_url = request.GET.get('next' or default_redirect)
 	variables = RequestContext(request, {
@@ -553,19 +567,20 @@ def process_submitted_data(request,
 	return render_to_response(template_name,variables)
 
 def submission_success(request,
- 					success_redirect='/',
+ 					default_redirect='/',
 					template_name='form_engine/success.html'):
-	success_redirect = request.GET.get('rdt' or default_redirect)
+	success_redirect = request.GET.get('next' or default_redirect)
 	variables = RequestContext(request, {
 				'success_redirect_url': success_redirect,
 			})
 	return render_to_response(template_name, variables)
 
 @login_required
+@transaction.commit_on_success
 def edit_survey_settings(request, form_id,
-							template_name='form_engine/form_settings.html'):
+							template_name='form_engine/settings.html'):
 	form_template = get_object_or_404(Survey, id=form_id)
-	form_template.forms = forms_for_survey_no_prefix(request, form_template)
+	item_forms = forms_for_survey_no_prefix(request, form_template)
 	#create a new update form
 	settings_form = SurveyModelForm(request.POST or None, instance=form_template)
 	if settings_form.is_valid():
@@ -573,6 +588,7 @@ def edit_survey_settings(request, form_id,
 	variables = RequestContext(request, {
 							'request': request,
 							'form_template': form_template,
+							'item_forms': item_forms,
 							'settings_form': settings_form,
 							})
 	#ajax request return ajax response

@@ -4,15 +4,33 @@ from django.utils.encoding import force_unicode
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 from django.forms.util import flatatt
-from django.forms.widgets import Widget, MultiWidget, RadioInput, Textarea, Select,\
-	RadioFieldRenderer, SelectMultiple, TextInput,\
+from django.forms.widgets import Widget, MultiWidget, RadioInput, Textarea, Select, DateInput, DateTimeInput,\
+	RadioFieldRenderer, SelectMultiple, TextInput, TimeInput,\
 	CheckboxInput, CheckboxSelectMultiple, HiddenInput
 from django.forms.extras.widgets import SelectDateWidget
 from django.utils.encoding import StrAndUnicode, force_unicode
 from itertools import chain
 from django.conf import settings
-import settings
 from django.utils.safestring import mark_safe
+import settings
+
+class HTML5EmailInput(TextInput):
+    input_type = 'email'
+
+class HTML5NumberInput(TextInput):
+    input_type = 'number'
+
+class HTML5TelephoneInput(TextInput):
+    input_type = 'tel'
+
+class HTML5DateInput(DateInput):
+    input_type = 'date'
+
+class HTML5DateTimeInput(DateTimeInput):
+    input_type = 'datetime'
+
+class HTML5TimeInput(TimeInput):
+    input_type = 'time'
 
 __all__ = ('SelectTimeWidget', 'SplitSelectDateTimeWidget')
 
@@ -156,7 +174,7 @@ class SelectTimeWidget(Widget):
 			                                                      local_attrs)
 			output.append(select_html)
 
-		return mark_safe(u'\n'.join(output))
+		return mark_safe(u' '.join(output))
 
 	def id_for_label(self, id_):
 		return '%s_hour' % id_
@@ -178,7 +196,7 @@ class SelectTimeWidget(Widget):
 				h = 0
 
 		if (int(h) == 0 or h) and m and s:
-			return '%s:%s:%s' % (h, m, s)
+			return '%s<span>:</span>%s<span>:</span>%s' % (h, m, s)
 
 		return data.get(name, None)
 
@@ -191,30 +209,6 @@ class LikertRadioRenderer(RadioFieldRenderer):
 	def __iter__(self):
 		for i, choice in enumerate(self.choices):
 			yield RadioInput(self.name, self.value, self.attrs.copy(), choice, i)
-
-class CustomRadioInput(RadioInput):
-	"""
-		 An object used by RadioFieldRenderer that represents a single
-		 <input type='radio'>.
-		 """
-
-	def __unicode__(self):
-		if 'id' in self.attrs:
-			label_for = ' for="%s_%s"' % (self.attrs['id'], self.index)
-		else:
-			label_for = ''
-		choice_label = conditional_escape(force_unicode(self.choice_label))
-		return mark_safe(u'<label%s>%s %s</label>' % (label_for, self.tag(), choice_label))
-
-class CustomRadioRenderer(RadioFieldRenderer):
-	def render(self):
-		"""Outputs a <span> for this set of radio fields."""
-		return mark_safe(u'\n'.join([u'<span>%s</span>'
-		                             % force_unicode(w) for w in self]))
-
-	def __iter__(self):
-		for i, choice in enumerate(self.choices):
-			yield CustomRadioInput(self.name, self.value, self.attrs.copy(), choice, i)
 
 class PlainText(Widget):
 	def __init__(self, attrs=None, *args, **kwargs):
@@ -233,10 +227,10 @@ class TimeInputWidget(MultiWidget):
 
 	def __init__(self, *args, **kwargs):
 		widgets = (
-		TextInput(),
-		TextInput(),
-		Select(choices=(('am', 'AM'), ('pm', 'PM')))
-		)
+				TextInput(),
+				TextInput(),
+				Select(choices=(('am', 'AM'), ('pm', 'PM')))
+				)
 		super(TimeInputWidget, self).__init__(widgets, *args, **kwargs)
 
 	def decompress(self, value):
@@ -245,7 +239,7 @@ class TimeInputWidget(MultiWidget):
 		return [None, None, None]
 
 	def format_output(self, rendered_widgets):
-		return '<span class="datetime">%s</span>' % u' : '.join(rendered_widgets)
+		return '<span class="datetime">%s</span>' % u' <span class="colon">:</span> '.join(rendered_widgets)
 
 class SplitSelectDateTimeWidget(MultiWidget):
 	"""

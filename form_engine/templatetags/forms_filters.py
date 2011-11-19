@@ -1,4 +1,4 @@
-from form_engine.models import *
+from apps.form_engine.models import *
 from django import template
 
 register = template.Library()

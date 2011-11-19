@@ -1,0 +1,54 @@
+{% extends "form_engine/base.html" %}
+{% load custom_filters %}
+{% block title %} {{template_form.title}} {% endblock %}
+
+{% block javascript %}
+{{ block.super }}
+
+<script type="text/javascript">
+function show_hide(className) {
+	if (typeof(className) === "string")
+	{
+		$(className).toggle();	
+	}
+}
+</script>
+{% endblock %}
+{% block content %}
+	<div class="info">
+		<h2>{{form_template.title}}</h2>
+		<div>{{ form_template.description }}</div>
+	</div>
+
+	<table cellspacing="0" class="response-table">
+		<thead>
+			<tr>
+				<th class="col_0"><div>User</div></th>
+				{% for form_field in form_fields %}
+				<th title="{{ form_field }}" class="col_{{forloop.counter}}"><div>{{ form_field }}</div></th>
+				{% endfor %}
+				<th class="lastCol" title="Add or remove columns from the table">
+					<span class="colControl"> <a id="add" href="#" onclick="$('#addCols').toggle()"> + </a>
+						 <ul id="addCols">
+						<li><span><a href="#" onclick="show_hide('.response-table .col_0');">User</a></span></li>
+						{% for form_field in form_fields %}
+						<li><span><a href="#" onclick="show_hide('.response-table .col_{{forloop.counter}}');">{{ form_field }}</a></span></li>
+						{% endfor %}
+					</ul>
+					</span>
+				</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for session,answers in form_receipients.items %}
+			<tr class="row {% cycle "odd" "even" %}">
+				<td class="col_0"><div>{{ session.user.get_full_name|default:session.user.username|capfirst }}</div></td>
+				{% for form_field in form_fields %}
+				<td class="col_{{forloop.counter}}"><div>{{ answers|objectAtIndex:forloop.counter0|default_if_none:"" }}</div></td>
+				{% endfor %}
+				<td></td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endblock %}

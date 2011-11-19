@@ -1,20 +1,21 @@
-{% extends "form_engine/form_builder_base.html" %}
-{% block title %} {{block.super}}| Form Creator {% endblock %}
+{% extends "form_engine/base_designer.html" %}
 
 {% block form-controls %}
 <div id="addField" class="tab_content">
-	<form id="addFieldForm" name="question" autocomplete="on" method="post" action="{% url add_field_type form_id=form_template.id field_type=field_type %}">
+	<form id="addFieldForm" name="question" autocomplete="on" method="post" method="post" action="">
 		{% csrf_token %}
 		<div id="entry" class="form">
 			<ul>
 			{% for field in question_form  %}
 				<li class="form_field">
-				{% if not field.is_hidden and field.label %} {{ field.label }} {% endif %} 
+					{% if not field.is_hidden and field.label %} 
+					<label for="">{{ field.label }}<label> 
+					{% endif %} 
 					{{ field }}
 				</li>
 				{% if field.errors %}
 				<li>
-				{{field.label}}	{{ field.errors }}
+					{{ field.errors }}
 				</li>
 				{% endif %}
 			{% endfor %}

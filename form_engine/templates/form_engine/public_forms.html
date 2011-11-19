@@ -15,12 +15,10 @@
 		<a href="{% url form_template_view form_id=template.id %}"><h4>{{ template }}</h4></a>
 		<p class="medium-text">Author: {{ template.author.get_full_name }}</p>
 		<p class="medium-text">Description: {{ template.description }}</p>
-
 			<ul class="horizontal">
 			<li ><a class="link-button" href="{% url form_send_data form_slug=template.slug %}">Preview</a></li>
 			<li ><a class="link-button" href="{% url form_template_import template_slug=template.slug %}">Import</a></li>
 			</ul>
-		
 	</li>
 	{% endfor %}
 	</ul>

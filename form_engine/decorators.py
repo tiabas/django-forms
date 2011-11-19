@@ -3,8 +3,8 @@ from django.http import HttpResponseNotFound
 from django.shortcuts import get_object_or_404, render_to_response
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, HttpResponse, Http404
-from form_engine.forms import Survey
-from form_engine.forms import *
+from apps.form_engine.forms import Survey
+from apps.form_engine.forms import *
 
 def authorize_form(func): 
 	@wraps(func)   

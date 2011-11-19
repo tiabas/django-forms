@@ -1,54 +1,56 @@
 # -*- coding: utf-8 -*-
 import uuid
-from datetime import datetime
-from datetime import date
+from django.core.context_processors import csrf
+from datetime import date, datetime
 from django.template.defaultfilters import slugify
-from django.forms import BaseForm, Form, ValidationError
-from django.forms import CharField, ChoiceField, SplitDateTimeField,\
-                            CheckboxInput, BooleanField,FileInput,\
-                            FileField, ImageField, Textarea, TextInput, Select, RadioSelect,\
-                            CheckboxSelectMultiple, MultipleChoiceField,\
-                            SplitDateTimeWidget,MultiWidget, MultiValueField
+from django.forms import BaseForm, ModelForm, Form, ValidationError, CharField, ChoiceField, EmailField, URLField, SplitDateTimeField,\
+                         DateField, IntegerField, CheckboxInput, BooleanField, FileInput,\
+                         FileField, ImageField, Textarea, TextInput, Select, RadioSelect,\
+                         CheckboxSelectMultiple, MultipleChoiceField,\
+                         SplitDateTimeWidget,MultiWidget, MultiValueField
+from django.forms.forms import BoundField
+from django.forms.widgets import RadioFieldRenderer, RadioInput, HiddenInput, TimeInput
+from django.forms.extras.widgets import *
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from django.template import Context, loader, Template
-from django.forms.extras.widgets import *
-from django.forms.forms import BoundField
 from django.core.exceptions import ValidationError
-from django import forms
 from django.utils.safestring import mark_safe
-from django.utils.html import escape
+from django.utils.html import escape, conditional_escape
+from django.utils.encoding import force_unicode
 
-from form_engine.customWidgets import PlainText, TimeInputWidget,\
-                            CustomRadioRenderer, CustomCheckboxSelectMultiple,\
-							LocationWidget, SplitSelectDateTimeWidget
-from form_engine.customFields import *
-from form_engine.models import *
+from apps.form_engine.customWidgets import PlainText, TimeInputWidget,\
+                            CustomCheckboxSelectMultiple,\
+							LocationWidget, SplitSelectDateTimeWidget,\
+							HTML5EmailInput, HTML5TelephoneInput, HTML5DateInput, HTML5TimeInput, HTML5DateTimeInput, HTML5NumberInput
+from apps.form_engine.customFields import *
+from apps.form_engine.models import *
 
 MAX_CHOICE_LEN = 30
 Q_CHOICE_NUM = 4
 MULTIPLE_CHOICE_FIELDS =['select_box', 'radio_list', 'checkbox_list']
 
-class BaseResponseForm(forms.Form):
+class BaseResponseForm(Form):
 	
-	def __init__(self, question, survey, user, session_uuid=None, session_key=None, edit_existing=True, *args, **kwdargs):
+	def __init__(self, question, survey, user, request, form_session=None, session_key=None, edit_existing=True, *args, **kwdargs):
+		self.request = request
 		self.question = question
 		self.survey = survey
 		self.answer = None
 		self.user = user
-		self.session_uuid = session_uuid
+		self.session = form_session
 		self.field_attrs = dict([(attr.attribute, attr.value) for attr in question.field_attrs.all()])
 		initial = None
 		if session_key:
 			self.session_key = session_key.lower()
 		else:
 			self.session_key = None
-		if self.session_uuid and edit_existing:
-			query = question.answers.filter(session_uuid=self.session_uuid)
+		if self.session and edit_existing:
+			query = question.answers.filter(form_session=self.session)
 			# if not user.is_authenticated():
-			# 	query = question.answers.filter(session_uuid=self.session_uuid)
+			# 	query = question.answers.filter(form_session=self.session)
 			# else:
-			# 	query = question.answers.filter(session_uuid=self.session_uuid)
+			# 	query = question.answers.filter(form_session=self.session)
 			if query.count():
 				self.answer = query[0]
 				initial = self.answer.text
@@ -66,35 +68,55 @@ class BaseResponseForm(forms.Form):
 	during the page rendering"""
 	def as_template(self):
 		"Helper function for rendering a form field as a template element. All inputs are disabled"
+		self.fields['answer'].widget.attrs.update({'disabled':'disabled', 'readonly':'readonly'})
 		bound_fields = [BoundField(self, field, name) for name, field in self.fields.items()]
-		c = Context(dict(form = self, bound_fields = bound_fields))
+		ctxt_dict = dict(form=self, bound_fields=bound_fields)
+		ctxt_dict.update(csrf(self.request))
+		c = Context(ctxt_dict)
 		t = Template('''
-			<li class="sortable_item" id="bar_{{ form.question.id }}">
-			<span id="qn_attr" class="icon">
-			<a href="{% url update_field form_id=form.survey.id question_id=form.question.id %}" id="updlstItem{{ form.question.id }}" class="updField">
-				<img class="icon_button" src="/form_media/images/edit.png"/>
-			</a>
-			<a href="{% url delete_field form_id=form.survey.id question_id=form.question.id %}" id="dellstItem{{ form.question.id }}" class="delField">
-				<img class="icon_button" src="/form_media/images/delete.gif"/>
-			</a>
-			<img src="/form_media/images/arrow.png" alt="move" width="16" height="16" class="icon_button handle" />
-			</span>
-			<span id="qLabel_{{ form_pair.q_id }}" class="qlabel"> {{ form.answer.label_tag }} </span>
-			<span class="helpText">{{ form.question.hint }}</span>
+			<li class="sortable_item item" id="bar_{{ form.question.id }}">
+			<div class="item_header">
+				<span id="qn_attr" class="icon">
+					<a href="{% url update_field form_id=form.survey.id question_id=form.question.id %}" id="updlstItem{{ form.question.id }}" class="updField">
+						<img class="icon_button" src="/form_media/images/edit.png"/>
+					</a>
+					<form class="delete icon_button" method="POST" action="{% url delete_field form_id=form.survey.id %}" id="dellstItem{{ form.question.id }}" class="delField">
+						<input type="hidden" name="question_id" value="{{form.question.id}}" />
+						<input type="submit" name="delete" value="" style="border:none;background:url('/form_media/images/delete.gif') no-repeat scroll 3px 0 transparent"/>
+						{% csrf_token %}
+					</form>
+					<img src="/form_media/images/arrow.png" alt="move" width="16" height="16" class="icon_button handle" />
+				</span>
+				<span id="qLabel_{{ form_pair.q_id }}" class="qlabel">{{ form.answer.label_tag }}{% if form.question.required %}<span style="color:red;">&nbsp;*</span>{% endif %}</span>
+			</div>
 			<div class="options">{{ form.answer }}</div>
+			{% if form.question.hint %}
+			<span class="helpText clear">Hint: {{ form.question.hint }}</span>
+			{% endif %}
 			</li>
 				''')
 		return t.render(c)
 
 	def as_input_field(self):
 		"Helper function for rendering each form field as submittable input element"
+		if self.fields['answer'].required:
+			self.fields['answer'].widget.attrs.update({'required':'true'})
 		bound_fields = [BoundField(self, field, name) for name, field in self.fields.items()]
 		c = Context(dict(form = self, bound_fields = bound_fields))
 		t = Template('''
 				<li id="bar_{{ form.question.id }}">
-					<span id="qLabel_{{ form_pair.q_id }}" class="qlabel"> {{ form.answer.label_tag }}</span>
-					<span class="helpText">{{ form.question.hint }}</span>
-					<div class="options">{{ form.answer }} {% if form.errors %}<span>{{form.answer.errors}}</span>{% endif %}</div>
+					<div class="item_header">
+						<span id="qLabel_{{ form_pair.q_id }}" class="qlabel"> {{ form.answer.label_tag }}</span>
+					</div>
+					<div class="options">
+						{{ form.answer }} 
+						{% if form.errors %}<span>{{form.answer.errors}}</span>{% endif %}
+						{% if form.question.hint %}
+							<span class="helpText clear">Hint: {{ form.question.hint }}</span>
+						{% else %}
+							<br class="clear" />
+						{% endif %}	
+					</div>
 				</li>
 			''')
 		return t.render(c)
@@ -119,51 +141,51 @@ class BaseResponseForm(forms.Form):
 			usr_response.user = self.user
 		else:
 			raise ValidationError(_('You must be logged in'))
-		usr_response.session_uuid = self.session_uuid
+		usr_response.form_session = self.session
 		usr_response.text = mark_safe(self.cleaned_data['answer'])
 		if commit: usr_response.save()
 		return usr_response
 		
 class EmailInputField(BaseResponseForm):
-	answer = forms.EmailField(widget=TextInput(attrs={'class':'text'}))
+	answer = EmailField(widget=HTML5EmailInput(attrs={'class':'text'}))
 
 class URLInputField(BaseResponseForm):
-	answer = forms.URLField(widget=TextInput(attrs={'class':'text'}))
+	answer = URLField(widget=TextInput(attrs={'class':'text'}))
 
 class TimeInputField(BaseResponseForm):
-	answer = forms.CharField(widget=TimeInputWidget(attrs={'class':'text'}))
+	answer = CharField(widget=TimeInputWidget(attrs={'class':'text'}))
 
 class DateInputField(BaseResponseForm):
-	answer = forms.DateField(widget=SelectDateWidget(attrs={'class':'text'}, years=range(1900,2020)))
+	answer = DateField(widget=SelectDateWidget(attrs={'class':'text'}, years=range(1900,2099)))
 
 class NumberField(BaseResponseForm):
-	answer = forms.IntegerField()
+	answer = IntegerField()
 	
 	def __init__(self, *args, **kwargs):
 		super(NumberField, self).__init__(*args, **kwargs)
 		self.fields['answer'].widget = TextInput(attrs=self.field_attrs)
 		
 class NumberSelectField(BaseResponseForm):
-	answer = forms.IntegerField()
+	answer = IntegerField()
 	
 	def __init__(self, *args, **kwargs):
 		super(NumberSelectField, self).__init__(*args, **kwargs)
 		self.min_value = int(self.question.get_attribute('min_value', 0))
 		self.max_value =int(self.question.get_attribute('max_value', 45))
 		self.choices = tuple([(x, x) for x in range(self.min_value, self.max_value+1)])
-		self.fields['answer'].widget = Select(choices=self.choices)
+		self.fields['answer'].widget = Select(choices=self.choices, attrs={'min':self.min_value, 'max':self.max_value})
 	
 class TextInputField(BaseResponseForm):
-	answer = forms.CharField(widget=TextInput(attrs={'class':'text'}))
+	answer = CharField(widget=TextInput(attrs={'class':'text'}))
 
 class TextAreaField(BaseResponseForm):
-	answer = forms.CharField(widget=Textarea(attrs={'class':'textarea'}))
+	answer = CharField(widget=Textarea(attrs={'class':'textarea'}))
 	
 class LocationField(BaseResponseForm):
 	answer = LocationField(widget=LocationWidget(map_width=350, map_height=300, attrs={'class':'text'}))
 
 class OptionForm(BaseResponseForm):
-	answer = forms.Field()
+	answer = Field()
 
 	def __init__(self, *args, **kwdargs):
 		super(OptionForm, self).__init__(*args, **kwdargs)
@@ -191,18 +213,41 @@ class SelectListField(OptionForm):
 		super(SelectListField, self).__init__(*args, **kwdargs)
 		self.fields['answer'].widget = Select(choices=self.choices)
 
+class CustomRadioInput(RadioInput):
+	"""
+	 An object used by RadioFieldRenderer that represents a single
+	 <input type='radio'>.
+	"""
+	def __unicode__(self):
+		if 'id' in self.attrs:
+			label_for = ' for="%s_%s"' % (self.attrs['id'], self.index)
+		else:
+			label_for = ''
+		choice_label = conditional_escape(force_unicode(self.choice_label))
+		return mark_safe(u'%s<label%s>%s</label>' % (self.tag(), label_for, choice_label))
+
+class CustomRadioRenderer(RadioFieldRenderer):
+	def render(self):
+		"""Outputs a <span> for this set of radio fields."""
+		return mark_safe(u'\n'.join([u'<span>%s</span>' % force_unicode(w) for w in self]))
+		
+	def __iter__(self):
+		for i, choice in enumerate(self.choices):
+			yield CustomRadioInput(self.name, self.value, self.attrs.copy(), choice, i)
+				
 class RadioListField(OptionForm):
+
 	def __init__(self, *args, **kwdargs):
 		super(RadioListField, self).__init__(*args, **kwdargs)
 		self.fields['answer'].widget = RadioSelect(renderer=CustomRadioRenderer, choices=self.choices, attrs={'class':'radio'})
 
 class CheckListField(OptionForm):
 	def __init__(self, *args, **kwdargs):
-		session_uuid = kwdargs.get('session_uuid', False)
+		user_session = kwdargs.get('form_session', False)
 		self.answers_text = []
 		super(CheckListField, self).__init__(*args, **kwdargs)
-		if session_uuid:
-			self.answers_text = [answer.text for answer in self.question.answers.filter(session_uuid=session_uuid)]
+		if user_session != None:
+			self.answers_text = [answer.text for answer in self.question.answers.filter(form_session=user_session)]
 			self.initial_response = ["%s" % choice.id for choice in self.question.choices.filter(text__in=self.answers_text)]
 			self.initial['answer'] = self.initial_response
 		self.current_choices = ["%s" % choice.id for choice in self.field_choices]
@@ -222,30 +267,31 @@ class CheckListField(OptionForm):
 		return self.cleaned_data['answer']
 
 	def save(self, commit=True):
-		ans_list = []
-		for choice_id in self.cleaned_data['answer']:
-			prev_choice = self.choices_dict.get(choice_id, False)
-			if not prev_choice in self.answers_text:
-				ans = Answer(
-					user=self.user,
-					question=self.question,
-					session_key = self.session_key,
-					session_uuid=self.session_uuid,
-					text=prev_choice
-				)
-				ans.save()
-				ans_list.append(ans)
-		for choice_id in self.current_choices:
-			if not choice_id in self.cleaned_data['answer']:
-				try:
-					ans = Answer.objects.get(session_uuid=self.session_uuid, question=self.question, text=self.choices_dict.get(choice_id, ""))
-					ans.delete()
-				except ObjectDoesNotExist:
-					pass
-		return ans_list
+		print "Check box field needs some work"
+		# ans_list = []
+		# for choice_id in self.cleaned_data['answer']:
+		# 	prev_choice = self.choices_dict.get(choice_id, False)
+		# 	if not prev_choice in self.answers_text:
+		# 		ans = Answer(
+		# 			user=self.user,
+		# 			question=self.question,
+		# 			session_key = self.session_key,
+		# 			session_uuid=self.session_uuid,
+		# 			text=prev_choice
+		# 		)
+		# 		ans.save()
+		# 		ans_list.append(ans)
+		# for choice_id in self.current_choices:
+		# 	if not choice_id in self.cleaned_data['answer']:
+		# 		try:
+		# 			ans = Answer.objects.get(session_uuid=self.session_uuid, question=self.question, text=self.choices_dict.get(choice_id, ""))
+		# 			ans.delete()
+		# 		except ObjectDoesNotExist:
+		# 			pass
+		# return ans_list
 
 class SectionBreakField(BaseResponseForm):
-	answer = forms.CharField(widget=PlainText(),
+	answer = CharField(widget=PlainText(),
 							help_text=_('Section sub-title goes here'))
 	
 	def __init__(self, *args, **kwdargs):
@@ -255,16 +301,23 @@ class SectionBreakField(BaseResponseForm):
 	# Helper function for rendering a form element with only plain text
 	def as_template(self):
 		bound_fields = [BoundField(self, field, name) for name, field in self.fields.items()]
-		c = Context(dict(form = self, bound_fields = bound_fields))
+		ctxt_dict = dict(form=self, bound_fields=bound_fields)
+		ctxt_dict.update(csrf(self.request))
+		c = Context(ctxt_dict)
 		t = Template('''
 		<li class="sortable_item" id="bar_{{ form.question.id }}">
+			<div class="item_header"> 
 			<span id="qn_attr" class="icon">
 			<a href="{% url update_field form_id=form.survey.id question_id=form.question.id %}" id="updlstItem{{ form.question.id }}" class="updField">
 			<img class="icon_button" src="/form_media/images/edit.png"/></a>
-			<a href="{% url delete_field form_id=form.survey.id question_id=form.question.id %}" id="dellstItem{{ form.question.id }}" class="delField">
-			<img class="icon_button" src="/form_media/images/delete.gif"/></a>
+			<form class="delete icon_button" method="POST" action="{% url delete_field form_id=form.survey.id %}" id="dellstItem{{ form.question.id }}" class="delField">
+				<input type="hidden" name="question_id" value="{{form.question.id}}" />
+				<input type="submit" name="delete" value="" style="border:none; background:url('/form_media/images/delete.gif') no-repeat scroll 0 0 transparent"/>
+				{% csrf_token %}
+			</form>
 			<img src="/form_media/images/arrow.png" alt="move" width="16" height="16" class="icon_button handle" />
 			</span>
+			</div>
 			<div class="section">
 			<span class="title" >{{ form.answer.label_tag }}</span><br />
 			<span class="sub-title">{{ form.question.hint }}</span>
@@ -309,7 +362,7 @@ FORM_Q_TYPE = {
 	'location_input': LocationField,
 }
 	
-def forms_for_survey(request, survey, session_uuid=None, edit_existing=True, prefix=None):
+def forms_for_survey(request, survey, user_session=None, edit_existing=True, prefix=None):
 	"""
 	returns a list contianing form objects that will be added to the survey form.
 	each form is defined y it's prefix and specified by the "prefix" parameter.
@@ -327,14 +380,13 @@ def forms_for_survey(request, survey, session_uuid=None, edit_existing=True, pre
 		post_data = request.POST
 	else:
 		post_data = None
-	print session_uuid
-	return [FORM_Q_TYPE[question.qtype](question, survey, user, session_uuid=session_uuid, session_key=session_key,
+	return [FORM_Q_TYPE[question.qtype](question, survey, user, request, form_session=user_session, session_key=session_key,
 	 		prefix=sp+str(question.id), data=post_data, edit_existing=edit_existing)
 			for question in survey.questions.all().order_by('order')]
 	
 def forms_for_survey_no_prefix(request, survey):
 	user = request.user
-	return [FORM_Q_TYPE[question.qtype](question, survey, user)
+	return [FORM_Q_TYPE[question.qtype](question, survey, user, request)
 			for question in survey.questions.all().order_by('order')]
 
 def form_for_question(question, survey):
@@ -347,64 +399,29 @@ def forms_for_question():
 	formlistdict['choices'] = [ChoiceAddForm(prefix="choice_"+str(x)) for x in range(Q_CHOICE_NUM)]
 	return formlistdict
 
-class SurveyCreateForm(Form):
-	title = forms.CharField(
-				max_length=20,
-				label=u"Title",
-				help_text=u"Only use the following characters: a-z A-Z 0-9 _ -"
-				)
-	exp_date = forms.DateField(label=u"Closing date")
-	public = forms.BooleanField(
-				required=True,
-				help_text=u"Make this survey publicly available"
-				)
-	restricted = forms.BooleanField(
-				required=True,
-				help_text=u"Make this survey restricted to certain users"
-				)
-	description = forms.CharField(
-				max_length=300,
-				widget=forms.Textarea,
-				help_text=u"Short description of your survey"
-				)
-	#complete = forms.BooleanField(required=False)
-	#co_authors = forms.ManyToManyField(User,null=True,blank=True)
-	#takers = forms.ManyToManyField(User,null=True,blank=True)
-	#pub_date = forms.DateTimeField("date published",default=datetime.now)
-
-	def save(self):
-		survey = Survey(
-				title=self.cleaned_data['title'],
-				description=self.cleaned_data['description'],
-				exp_date=self.cleaned_data['exp_date'],
-				restricted=self.cleaned_data['exp_date'],
-				public=self.cleaned_data['public']
-				)
-		survey.save()
-		return survey
 
 class BaseFieldForm(Form):
-	text = forms.CharField(
+	text = CharField(
 				label=u"Field Label",
-				widget=forms.Textarea(attrs={'class':'textarea'})
+				widget=Textarea(attrs={'class':'textarea'})
 				)
-	hint = forms.CharField(
+	hint = CharField(
 				max_length=400,
 				label=u"Instructions to user",
 				required=False,
-				widget=forms.Textarea(attrs={'class':'textarea'})
+				widget=Textarea(attrs={'class':'textarea'})
 				)
-	required = forms.BooleanField(
+	required = BooleanField(
 				initial=True,
 				label=u"Required",
 				help_text=u"Unheck if this question is optional",
 				required=False,
 				)
-	qtype = forms.CharField(
+	qtype = CharField(
 				label=u"Field Type",
-				widget=forms.HiddenInput()
+				widget=HiddenInput()
 				)
-	access =  forms.ChoiceField(
+	access =  ChoiceField(
 				label=_('Show Field to'),
 				initial="user", 
 				choices=ACCESS_LEVEL,
@@ -474,12 +491,12 @@ class IntegerFieldForm(BaseFieldForm):
 		if self.instance:
 			self.init_min = self.instance.get_attribute('min_value', 0)
 			self.init_max = self.instance.get_attribute('max_value', 0)
-		self.fields['min_value'] = forms.IntegerField(
+		self.fields['min_value'] = IntegerField(
 								initial= self.init_min,
 								required=False, 
 								widget=TextInput(attrs={'class':'numeric'})
 								)
-		self.fields['max_value'] = forms.IntegerField(
+		self.fields['max_value'] = IntegerField(
 								initial= self.init_max,
 								required=False, 
 								widget=TextInput(attrs={'class':'numeric'},)
@@ -497,7 +514,7 @@ class TextFieldForm(BaseFieldForm):
 		self.init_value = ""
 		if self.instance:
 			self.init_value = self.instance.get_attribute('predefined_value', '')
-		self.fields['predefined_value'] = forms.CharField(
+		self.fields['predefined_value'] = CharField(
 								initial= self.init_value,
 								required=False, 
 								widget=TextInput(attrs={'class':'text'})
@@ -531,7 +548,7 @@ class LocationFieldForm(BaseFieldForm):
 class SectionBreakFieldForm(BaseFieldForm):
 	def __init__(self, *args, **kwdargs):
 		super(SectionBreakFieldForm, self).__init__('section_break', *args, **kwdargs)
-		self.fields['required'].widget = forms.widgets.HiddenInput()
+		self.fields['required'].widget = HiddenInput()
 		self.initial['required'] = False
 		
 class ChoiceWidget(TextInput):
@@ -540,8 +557,8 @@ class ChoiceWidget(TextInput):
 		html = mark_safe(_('<li>'))
 		html += output
 		html += mark_safe(_('''
-				<a id="addChoice" class="uiButton" style="width:25px"><b>+</b></a>
-				<a id="delChoice" class="uiButton" style="width:25px"><b>-</b></a>
+				<a id="addChoice" class="uiButton" style="padding: 2px;  font-weight: bold;">+</a>
+				<a id="delChoice" class="uiButton" style="padding: 2px;  font-weight: bold;">-</a>
 				</li>
 				'''))
 		return html
@@ -555,15 +572,17 @@ class MultipleChoiceFieldForm(BaseFieldForm):
 		if self.instance:
 			self.choice_set = self.instance.choices.all()
 			if len(self.choice_set) > 0:
+				count = 1
 				for choice in self.choice_set:
-					self.fields['choice-%d' % choice.pk] = forms.CharField(
-						label='Choices', 
+					self.fields['choice-%d' % choice.pk] = CharField(
+						label='Choice %d:' % count, 
 						required=False,
 						initial=choice.text,
 						widget=ChoiceWidget(attrs={'class': 'choices'})
 					)
+					count+=1
 		else:
-			self.fields['newChoices'] = forms.CharField(
+			self.fields['newChoices'] = CharField(
 				label='Choices', 
 				required=False,
 				widget=ChoiceWidget(attrs={'class': 'choices'})
@@ -630,12 +649,49 @@ def get_form_for_field_type(field_type, instance=None, *args, **kwargs):
 		return field_type_form(instance=instance, *args, **kwargs)
 	return None
 	
+
+class SurveyCreateForm(Form):
+	title = CharField(
+				max_length=20,
+				label=u"Title",
+				help_text=u"Only use the following characters: a-z A-Z 0-9 _ -"
+				)
+	exp_date = DateField(label=u"Closing date")
+	public = BooleanField(
+				required=True,
+				help_text=u"Make this survey publicly available"
+				)
+	restricted = BooleanField(
+				required=True,
+				help_text=u"Make this survey restricted to certain users"
+				)
+	description = CharField(
+				max_length=300,
+				widget=Textarea,
+				help_text=u"Short description of your survey"
+				)
+	#complete = BooleanField(required=False)
+	#co_authors = ManyToManyField(User,null=True,blank=True)
+	#takers = ManyToManyField(User,null=True,blank=True)
+	#pub_date = DateTimeField("date published",default=datetime.now)
+
+	def save(self):
+		survey = Survey(
+				title=self.cleaned_data['title'],
+				description=self.cleaned_data['description'],
+				exp_date=self.cleaned_data['exp_date'],
+				restricted=self.cleaned_data['exp_date'],
+				public=self.cleaned_data['public']
+				)
+		survey.save()
+		return survey
+
 class ImportFormTemplateForm(Form):
 	
-	title = forms.CharField(
+	title = CharField(
 				max_length=200,
 				label=u"Title",	
-				widget=forms.TextInput(attrs={'class':'textarea', 'cols': 35, 'rows': 10}),
+				widget=TextInput(attrs={'class':'textarea', 'cols': 35, 'rows': 10}),
 				help_text="Enter a title for your form"
 				)
 				
@@ -649,7 +705,7 @@ class ImportFormTemplateForm(Form):
 		slugified_title = slugify(title)
 		try:
 			Survey.objects.get(slug=slugified_title, author=self.current_user)
-			raise forms.ValidationError("This title is already in use. Please enter a different one.")
+			raise ValidationError("This title is already in use. Please enter a different one.")
 		except ObjectDoesNotExist:
 			return title
 			
@@ -657,24 +713,24 @@ class ImportFormTemplateForm(Form):
 		new_form = self.source_template.make_copy(self.cleaned_data['title'], self.current_user )
 		return new_form
 		
-class QuestionModelForm(forms.ModelForm):
-	text = forms.CharField(
+class QuestionModelForm(ModelForm):
+	text = CharField(
 				max_length=200,
 				label=u"Field title",	
-				widget=forms.Textarea(attrs={'class':'textarea', 'cols': 35, 'rows': 10})
+				widget=Textarea(attrs={'class':'textarea', 'cols': 35, 'rows': 10})
 				)
-	qtype = forms.ChoiceField(
+	qtype = ChoiceField(
 				label=u"Field type",
 				choices=QTYPE_CHOICES,	
-				widget=forms.HiddenInput()
+				widget=HiddenInput()
 				)
-	hint = forms.CharField(
+	hint = CharField(
 				max_length=400,
 				label=u"Instructions to user",
 				required=False,
-				widget=forms.Textarea(attrs={'class':'textarea', 'cols': 35, 'rows': 10})
+				widget=Textarea(attrs={'class':'textarea', 'cols': 35, 'rows': 10})
 				)
-	required = forms.BooleanField(
+	required = BooleanField(
 				initial=True,
 				label=u"Required",
 				help_text=u"Unheck if this question is optional",
@@ -683,41 +739,47 @@ class QuestionModelForm(forms.ModelForm):
 		model = Question
 		exclude = ('survey','creation_date', 'order', 'choice_num_min','choice_num_max')
 
-class SurveyModelForm(forms.ModelForm):
-	title = forms.CharField(
+class SurveyModelForm(ModelForm):
+	title = CharField(
 				max_length=150,
-				widget=forms.TextInput(attrs={'tabindex': '1'}),
+				widget=TextInput(attrs={'tabindex': '1'}),
 				label=u"Title",
 				help_text=u"Only use the following characters: a-z A-Z 0-9 (100 chars max)"
 				)
 				
-	description = forms.CharField(
+	description = CharField(
 				max_length=255,
-				widget=forms.Textarea(attrs={'tabindex': '2', 'class':'textarea', 'cols': 35, 'rows': 10}),
+				widget=Textarea(attrs={'tabindex': '2', 'class':'textarea'}),
 				required=False,
 				help_text=u"Short description of your survey (Limit 140 characters)"
 				)
-	public = forms.BooleanField(
+	public = BooleanField(
 				label=_('Make public'),
 				required=False,
-				widget=forms.CheckboxInput(attrs={'tabindex': '3'}),
+				widget=CheckboxInput(attrs={'tabindex': '3'}),
 				help_text=u"Make this survey publicly available for copying"
 				)
+	confirmation_text = CharField(
+			max_length=255,
+			widget=Textarea(attrs={'tabindex': '3',  'class':'textarea'}),
+			required=False,
+			help_text=u""
+			)
 	# co_authors = MultipleChoiceField(
 	# 				label='Add co-authors',
 	# 				widget=CustomCheckboxSelectMultiple, 
 	# 				choices=self.choices,
 	# 				required=False)
-	# restricted = forms.BooleanField(
+	# restricted = BooleanField(
 	# 				help_text=u"Make this survey restricted to certain authenticated users"
 	# 				)
-	# pub_date = forms.SplitDateTimeField(
+	# pub_date = SplitDateTimeField(
 	# 			required=False,
 	# 			label=_('Publish on'),
 	# 			help_text=_('DD-MM-YYYY'),
 	# 			widget=SplitSelectDateTimeWidget(),
 	# 			)
-	# exp_date = forms.SplitDateTimeField(label=_('Close on'),
+	# exp_date = SplitDateTimeField(label=_('Close on'),
 	# 			required=False,
 	# 			help_text=_('DD-MM-YYYY'),
 	# 			widget=SplitSelectDateTimeWidget(),
@@ -726,10 +788,7 @@ class SurveyModelForm(forms.ModelForm):
 	class Meta:
 		model = Survey
 		exclude = ('author','complete', 'pub_date', 'exp_date', 'slug', 'deleted', 'co_authors')
-		# fields = ['title','description','public']
-		#widgets = {
-			#'description': forms.Textarea(attrs={'cols': 50, 'rows': 20}),
-			#}
+
 	#def clean(self):
 		#title_slug = slugify(self.cleaned_data.get("title"))
 		#if not hasattr(self,"instance"):
@@ -741,14 +800,14 @@ class SurveyModelForm(forms.ModelForm):
 		#return self.cleaned_data
 
 class ChoiceForm(Form):
-	text = forms.CharField(
+	text = CharField(
 				max_length=30,
 				label=u"Choice",
-				#help_text=u"Enter a choice for this question field",
-				widget=forms.TextInput(attrs={'class':'text'})
+				help_text=u"Enter a choice for this question field",
+				widget=TextInput(attrs={'class':'text'})
 				)
 	"""
-	order = forms.IntegerField(
+	order = IntegerField(
 				required=False,
 				label=u"Order",
 				#help_text=u"Order in which choice will be displayed (Not required)"

@@ -1,9 +1,0 @@
-<div class="info">
-	<h2>{{survey.title}}</h2>
-	<div>{{ survey.description }}</div>
-</div>
-<ul id="qn_items" class="sortable">
-	{% for form in survey.forms %}
-	{{ form.as_template }}
-	{% endfor %}
-</ul>
